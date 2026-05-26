@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -11,10 +11,13 @@
   --font-serif: var(--font-serif);
   --animate-skeleton: skeleton 2s -1s infinite linear;
   --animate-caret-blink: 1s ease-out infinite caret-blink;
-  --animate-toast-success-odd: toast-success-odd 0.32s cubic-bezier(0.5, 1, 0.89, 1);
-  --animate-toast-success-even: toast-success-even 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-odd: toast-success-odd 0.32s
+    cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-even: toast-success-even 0.32s
+    cubic-bezier(0.5, 1, 0.89, 1);
   --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
-  --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-even: toast-error-even 0.28s
+    cubic-bezier(0.5, 1, 0.89, 1);
   --animate-aurora: aurora 18s ease-in-out infinite;
   --animate-shimmer: shimmer 3s linear infinite;
   --animate-pulse-glow: pulse-glow 3s ease-in-out infinite;
@@ -75,36 +78,78 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 
   @keyframes skeleton {
-    to { background-position: -200% 0; }
+    to {
+      background-position: -200% 0;
+    }
   }
   @keyframes caret-blink {
-    0%, 70%, to { opacity: 1; }
-    20%, 50% { opacity: 0; }
+    0%,
+    70%,
+    to {
+      opacity: 1;
+    }
+    20%,
+    50% {
+      opacity: 0;
+    }
   }
   @keyframes toast-success-odd {
-    0% { scale: 1; }
-    30% { scale: 1.025; }
-    60% { scale: 0.99; }
-    100% { scale: 1; }
+    0% {
+      scale: 1;
+    }
+    30% {
+      scale: 1.025;
+    }
+    60% {
+      scale: 0.99;
+    }
+    100% {
+      scale: 1;
+    }
   }
   @keyframes toast-error-odd {
-    0%, 100% { translate: 0 0; }
-    25%, 75% { translate: -3px 0; }
-    50% { translate: 3px 0; }
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    25%,
+    75% {
+      translate: -3px 0;
+    }
+    50% {
+      translate: 3px 0;
+    }
   }
   @keyframes toast-success-even {
-    0% { scale: 1; }
-    30% { scale: 1.025; }
-    60% { scale: 0.99; }
-    100% { scale: 1; }
+    0% {
+      scale: 1;
+    }
+    30% {
+      scale: 1.025;
+    }
+    60% {
+      scale: 0.99;
+    }
+    100% {
+      scale: 1;
+    }
   }
   @keyframes toast-error-even {
-    0%, 100% { translate: 0 0; }
-    25%, 75% { translate: -3px 0; }
-    50% { translate: 3px 0; }
+    0%,
+    100% {
+      translate: 0 0;
+    }
+    25%,
+    75% {
+      translate: -3px 0;
+    }
+    50% {
+      translate: 3px 0;
+    }
   }
   @keyframes aurora {
-    0%, 100% {
+    0%,
+    100% {
       transform: translate(0%, 0%) rotate(0deg) scale(1);
       opacity: 0.6;
     }
@@ -122,24 +167,49 @@
     }
   }
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
   }
   @keyframes pulse-glow {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.05); }
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.05);
+    }
   }
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-12px); }
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-12px);
+    }
   }
   @keyframes grid-fade {
-    0%, 100% { opacity: 0.06; }
-    50% { opacity: 0.12; }
+    0%,
+    100% {
+      opacity: 0.06;
+    }
+    50% {
+      opacity: 0.12;
+    }
   }
   @keyframes text-shimmer {
-    0% { background-position: 0% center; }
-    100% { background-position: -200% center; }
+    0% {
+      background-position: 0% center;
+    }
+    100% {
+      background-position: -200% center;
+    }
   }
 }
 
@@ -153,9 +223,9 @@
   --warning-foreground: oklch(0.85 0.13 75);
 
   /* AI-era brand palette */
-  --iris: oklch(0.68 0.22 285);       /* electric violet/iris */
+  --iris: oklch(0.68 0.22 285); /* electric violet/iris */
   --violet: oklch(0.6 0.25 295);
-  --mint: oklch(0.78 0.17 165);       /* fresh accent */
+  --mint: oklch(0.78 0.17 165); /* fresh accent */
   --ember: oklch(0.7 0.2 35);
 
   --accent: oklch(0.22 0.02 280);
@@ -257,9 +327,12 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "ss01", "cv11", "calt";
+    font-feature-settings: 'ss01', 'cv11', 'calt';
   }
-  code, kbd, samp, pre {
+  code,
+  kbd,
+  samp,
+  pre {
     font-family: var(--font-mono);
   }
   html {
@@ -307,14 +380,22 @@
   }
 
   .text-gradient-static {
-    background: linear-gradient(135deg, oklch(0.97 0.005 280) 0%, oklch(0.7 0.05 280) 100%);
+    background: linear-gradient(
+      135deg,
+      oklch(0.97 0.005 280) 0%,
+      oklch(0.7 0.05 280) 100%
+    );
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
   .text-gradient-iris {
-    background: linear-gradient(135deg, oklch(0.68 0.22 285) 0%, oklch(0.78 0.17 165) 100%);
+    background: linear-gradient(
+      135deg,
+      oklch(0.68 0.22 285) 0%,
+      oklch(0.78 0.17 165) 100%
+    );
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -338,7 +419,7 @@
     position: relative;
   }
   .noise::after {
-    content: "";
+    content: '';
     position: absolute;
     inset: 0;
     pointer-events: none;
@@ -363,8 +444,15 @@
 
   .border-gradient {
     position: relative;
-    background: linear-gradient(var(--card), var(--card)) padding-box,
-                linear-gradient(135deg, oklch(0.68 0.22 285 / 0.4), oklch(0.78 0.17 165 / 0.3), oklch(0.68 0.22 285 / 0.1)) border-box;
+    background:
+      linear-gradient(var(--card), var(--card)) padding-box,
+      linear-gradient(
+          135deg,
+          oklch(0.68 0.22 285 / 0.4),
+          oklch(0.78 0.17 165 / 0.3),
+          oklch(0.68 0.22 285 / 0.1)
+        )
+        border-box;
     border: 1px solid transparent;
   }
 
@@ -374,7 +462,19 @@
   }
 
   .mask-fade-y {
-    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 15%,
+      black 85%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 15%,
+      black 85%,
+      transparent 100%
+    );
   }
 }
