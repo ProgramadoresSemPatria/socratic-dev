@@ -1,80 +1,60 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 
 export function CTA() {
   return (
-    <section className='relative py-24 sm:py-32'>
-      <div className='mx-auto max-w-5xl px-4'>
+    <section className='py-20 sm:py-28'>
+      <div className='mx-auto max-w-6xl px-4 sm:px-6'>
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-100px' }}
           transition={{ duration: 0.7 }}
-          className='noise relative overflow-hidden rounded-[2rem] border border-white/[0.08]'
+          className='relative overflow-hidden rounded-[2rem] bg-[oklch(0.16_0.03_285)] px-6 py-16 text-center shadow-2xl shadow-primary/15 sm:px-16 sm:py-24'
         >
-          {/* gradient bg */}
-          <div className='absolute inset-0 -z-10'>
-            <div
-              className='absolute inset-0'
-              style={{
-                background:
-                  'linear-gradient(135deg, oklch(0.18 0.05 285) 0%, oklch(0.12 0.012 280) 60%, oklch(0.15 0.05 165) 100%)',
-              }}
-            />
-            <div className='grid-pattern absolute inset-0 opacity-50' />
-            <div
-              className='absolute -top-32 left-1/4 size-[400px] rounded-full opacity-50 blur-3xl'
-              style={{
-                background:
-                  'radial-gradient(circle, oklch(0.68 0.22 285 / 0.7), transparent 60%)',
-              }}
-            />
-            <div
-              className='absolute right-1/4 -bottom-32 size-[400px] rounded-full opacity-40 blur-3xl'
-              style={{
-                background:
-                  'radial-gradient(circle, oklch(0.78 0.17 165 / 0.6), transparent 60%)',
-              }}
-            />
-          </div>
+          {/* glow accents */}
+          <div className='grid-pattern absolute inset-0 opacity-[0.12] mix-blend-overlay' />
+          <div
+            className='absolute -top-28 left-1/4 size-[420px] rounded-full opacity-50 blur-3xl'
+            style={{
+              background:
+                'radial-gradient(circle, oklch(0.55 0.24 285 / 0.7), transparent 60%)',
+            }}
+          />
+          <div
+            className='absolute right-1/4 -bottom-28 size-[420px] rounded-full opacity-40 blur-3xl'
+            style={{
+              background:
+                'radial-gradient(circle, oklch(0.7 0.14 165 / 0.5), transparent 60%)',
+            }}
+          />
 
-          <div className='px-6 py-16 text-center sm:px-16 sm:py-24'>
-            <h2 className='font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-6xl'>
-              Programe como se{' '}
-              <span className='text-gradient font-serif font-normal italic'>
-                a IA não existisse
-              </span>
-              .
-              <br />
-              Aprenda como se ela{' '}
-              <span className='text-gradient font-serif font-normal italic'>
-                fosse seu mentor
-              </span>
-              .
+          <div className='relative'>
+            <h2 className='mx-auto max-w-2xl font-heading text-4xl leading-[1.05] font-semibold tracking-[-0.03em] text-balance text-white sm:text-5xl'>
+              Programe como se a IA não existisse. Aprenda como se ela fosse seu
+              mentor.
             </h2>
-            <p className='mx-auto mt-6 max-w-xl text-lg text-muted-foreground'>
-              Comece um desafio em 30 segundos. Sem cartão, sem onboarding
-              chato.
+            <p className='mx-auto mt-6 max-w-xl text-lg text-white/70'>
+              Comece um desafio em 30 segundos. Sem cartão, sem onboarding chato.
             </p>
 
             <div className='mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row'>
               <Button
                 size='xl'
-                className='glow-iris group h-12 rounded-full border-transparent bg-foreground pr-4 pl-5 text-[15px] text-background hover:bg-foreground/90'
+                className='group h-12 rounded-full border-transparent bg-white pr-5 pl-6 text-[15px] font-medium text-black hover:bg-white/90'
                 render={<Link href='/onboarding' />}
               >
-                <Sparkles className='size-4' />
                 Quero ser desafiado
                 <ArrowRight className='size-4 transition-transform group-hover:translate-x-1' />
               </Button>
               <Button
                 size='xl'
                 variant='ghost'
-                className='h-12 rounded-full px-5 text-[15px]'
+                className='h-12 rounded-full border border-white/20 px-5 text-[15px] font-medium text-white hover:bg-white/10'
                 render={<Link href='/dashboard' />}
               >
                 Ver dashboard de demo

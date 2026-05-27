@@ -7,6 +7,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { motion } from 'motion/react'
+import { Eyebrow, Section, SectionHeading, SectionLead } from './section'
 
 const steps = [
   {
@@ -19,82 +20,69 @@ const steps = [
     n: '02',
     icon: MessageCircleQuestion,
     title: 'Perguntas, não respostas',
-    desc: "Travou? O tutor pergunta: 'que estrutura de dados resolve isso?'. Você responde. Ele aprofunda.",
+    desc: 'Travou? O tutor pergunta: “que estrutura de dados resolve isso?”. Você responde. Ele aprofunda.',
   },
   {
     n: '03',
     icon: Lightbulb,
     title: 'Hints graduais',
-    desc: 'Três níveis de pista — do vago ao quase direto. Você decide o quanto de ajuda quer. E paga em pontos de independência.',
+    desc: 'Três níveis de pista — do vago ao quase direto. Você decide quanta ajuda quer, e paga em pontos de independência.',
   },
   {
     n: '04',
     icon: TrendingUp,
     title: 'Review socrático',
-    desc: "Submeteu? A IA não corrige. Pergunta: 'por que var e não const?'. Você aprende defendendo a sua escolha.",
+    desc: 'Submeteu? A IA não corrige. Pergunta: “por que var e não const?”. Você aprende defendendo a sua escolha.',
   },
 ]
 
 export function Method() {
   return (
-    <section id='metodo' className='relative py-28 sm:py-36'>
-      <div className='mx-auto max-w-6xl px-4'>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-100px' }}
-          transition={{ duration: 0.7 }}
-          className='mx-auto max-w-3xl text-center'
-        >
-          <div className='glass mb-6 inline-flex items-center gap-2 rounded-full px-3 py-1 font-mono text-[11px] text-muted-foreground'>
-            <span className='size-1 rounded-full bg-iris' />O método
-          </div>
-          <h2 className='font-heading text-4xl leading-[1.02] font-semibold tracking-[-0.035em] text-balance sm:text-5xl md:text-6xl'>
-            Sócrates, mas com uma{' '}
-            <span className='text-gradient font-serif font-normal italic'>
-              tela de código
-            </span>
-            .
-          </h2>
-          <p className='mt-5 text-lg leading-relaxed text-balance text-muted-foreground'>
-            2.400 anos atrás, ele formava pensadores fazendo perguntas. A gente
-            atualizou a interface.
-          </p>
-        </motion.div>
+    <Section id='metodo' muted>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.7 }}
+        className='mx-auto max-w-2xl text-center'
+      >
+        <Eyebrow>Como funciona</Eyebrow>
+        <SectionHeading className='mt-4'>
+          Sócrates, mas com uma tela de código.
+        </SectionHeading>
+        <SectionLead className='mt-5'>
+          2.400 anos atrás, ele formava pensadores fazendo perguntas. A gente só
+          atualizou a interface.
+        </SectionLead>
+      </motion.div>
 
-        <div className='mt-20 grid gap-5 sm:grid-cols-2 lg:grid-cols-4'>
-          {steps.map((s, i) => (
-            <motion.div
-              key={s.n}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-80px' }}
-              transition={{ delay: i * 0.1, duration: 0.6 }}
-              className='group relative'
-            >
-              <div className='glass relative h-full overflow-hidden rounded-3xl p-6 transition-colors hover:bg-white/[0.05]'>
-                <div className='absolute top-5 right-5 font-mono text-[11px] text-muted-foreground/50'>
-                  {s.n}
-                </div>
-                <div className='mb-5 grid size-11 place-items-center rounded-2xl border border-iris/20 bg-gradient-to-br from-iris/20 to-mint/10'>
-                  <s.icon className='size-5 text-foreground/90' />
-                </div>
-                <h3 className='mb-2 font-heading text-[19px] font-semibold tracking-tight'>
-                  {s.title}
-                </h3>
-                <p className='text-sm leading-relaxed text-muted-foreground'>
-                  {s.desc}
-                </p>
+      <div className='mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4'>
+        {steps.map((s, i) => (
+          <motion.div
+            key={s.n}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-60px' }}
+            transition={{ delay: i * 0.1, duration: 0.6 }}
+            className='relative rounded-2xl border border-border bg-card p-6 shadow-soft'
+          >
+            <div className='mb-5 flex items-center justify-between'>
+              <div className='grid size-11 place-items-center rounded-xl bg-primary/10 text-primary'>
+                <s.icon className='size-5' />
               </div>
-              {i < steps.length - 1 && (
-                <div className='absolute top-1/2 -right-3 hidden -translate-y-1/2 text-xl text-muted-foreground/30 lg:block'>
-                  →
-                </div>
-              )}
-            </motion.div>
-          ))}
-        </div>
+              <span className='font-heading text-2xl font-semibold text-foreground/15'>
+                {s.n}
+              </span>
+            </div>
+            <h3 className='mb-2 font-heading text-[19px] font-semibold tracking-tight text-foreground'>
+              {s.title}
+            </h3>
+            <p className='text-sm leading-relaxed text-muted-foreground'>
+              {s.desc}
+            </p>
+          </motion.div>
+        ))}
       </div>
-    </section>
+    </Section>
   )
 }

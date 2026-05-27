@@ -1,32 +1,27 @@
 import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
-import {
-  Instrument_Serif,
-  Inter,
-  Inter_Tight,
-  JetBrains_Mono,
-} from 'next/font/google'
+import { DM_Mono, DM_Sans, Noto_Serif } from 'next/font/google'
 import './globals.css'
 
-const interTight = Inter_Tight({
+const dmSansHeading = DM_Sans({
   subsets: ['latin'],
   variable: '--font-heading',
-  weight: ['400', '500', '600', '700', '800', '900'],
+  weight: ['300', '400', '500', '600', '700'],
 })
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-sans',
-  weight: ['400', '500', '600', '700'],
+  weight: ['300', '400', '500', '600', '700'],
 })
 
-const jetbrains = JetBrains_Mono({
+const dmMono = DM_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
-  weight: ['400', '500', '600', '700'],
+  weight: ['400', '500'],
 })
 
-const instrument = Instrument_Serif({
+const notoSerif = Noto_Serif({
   subsets: ['latin'],
   variable: '--font-serif',
   weight: ['400'],
@@ -48,11 +43,11 @@ export default function RootLayout({
     <html
       lang='pt-BR'
       className={cn(
-        'dark h-full antialiased',
-        inter.variable,
-        interTight.variable,
-        jetbrains.variable,
-        instrument.variable,
+        'h-full antialiased',
+        dmSans.variable,
+        dmSansHeading.variable,
+        dmMono.variable,
+        notoSerif.variable,
         'font-sans',
       )}
     >
