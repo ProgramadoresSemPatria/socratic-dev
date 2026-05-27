@@ -1,14 +1,19 @@
 import { Reveal } from './reveal'
+import { StatementDecor } from './statement-decor'
 
 export function Statement() {
   return (
-    <section id='problema' className='relative overflow-hidden px-6 py-20 text-center sm:px-10 sm:py-24 lg:py-32'>
+    <section
+      id='problema'
+      className='relative overflow-hidden px-6 py-20 text-center sm:px-10 sm:py-24 lg:py-32'
+    >
       <div
         className='pointer-events-none absolute -top-1/3 left-1/2 hidden size-[460px] -translate-x-1/2 rounded-full opacity-50 blur-3xl lg:block'
         style={{
           background: 'radial-gradient(circle, rgba(218,216,234,0.7), transparent 60%)',
         }}
       />
+      <StatementDecor />
       <div className='relative mx-auto flex max-w-[760px] flex-col items-center gap-6'>
         <Reveal>
           <h2 className='type-h2 text-pretty'>

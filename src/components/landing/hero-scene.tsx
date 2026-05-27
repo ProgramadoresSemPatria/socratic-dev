@@ -91,38 +91,20 @@ export function HeroScene({ className }: { className?: string }) {
     const canvas = ref.current
     if (!canvas) return
 
-    const gl = canvas.getContext('webgl', {
-      antialias: true,
-      premultipliedAlpha: false,
-    })
-    if (!gl) return
-
-    const vs = compile(gl, gl.VERTEX_SHADER, VERT)
-    const fs = compile(gl, gl.FRAGMENT_SHADER, FRAG)
-    if (!vs || !fs) return
-
-    const prog = gl.createProgram()!
-    gl.attachShader(prog, vs)
-    gl.attachShader(prog, fs)
-    gl.linkProgram(prog)
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return
-    gl.useProgram(prog)
-
-    const buf = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf)
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 3, -1, -1, 3]),
-      gl.STATIC_DRAW,
-    )
-    const aPos = gl.getAttribLocation(prog, 'a_pos')
-    gl.enableVertexAttribArray(aPos)
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
-
-    const uRes = gl.getUniformLocation(prog, 'u_res')
-    const uTime = gl.getUniformLocation(prog, 'u_time')
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let gl: WebGLRenderingContext | null = null
+    let prog: WebGLProgram | null = null
+    let vs: WebGLShader | null = null
+    let fs: WebGLShader | null = null
+    let buf: WebGLBuffer | null = null
+    let uRes: WebGLUniformLocation | null = null
+    let uTime: WebGLUniformLocation | null = null
+    let raf = 0
+    let start = performance.now()
+    let disposed = false
 
     const resize = () => {
+      if (!gl) return
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       const w = Math.max(1, Math.floor(canvas.clientWidth * dpr))
       const h = Math.max(1, Math.floor(canvas.clientHeight * dpr))
@@ -134,35 +116,84 @@ export function HeroScene({ className }: { className?: string }) {
       gl.uniform2f(uRes, canvas.width, canvas.height)
     }
 
-    const ro = new ResizeObserver(resize)
-    ro.observe(canvas)
-    resize()
-
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const start = performance.now()
-    let raf = 0
-
     const render = (now: number) => {
+      if (!gl || disposed) return
       gl.uniform1f(uTime, (now - start) / 1000)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
       raf = requestAnimationFrame(render)
     }
 
-    if (reduce) {
-      gl.uniform1f(uTime, 0)
-      gl.drawArrays(gl.TRIANGLES, 0, 3)
-    } else {
-      raf = requestAnimationFrame(render)
+    const init = () => {
+      gl = canvas.getContext('webgl', {
+        antialias: true,
+        premultipliedAlpha: false,
+      })
+      if (!gl) return false
+      vs = compile(gl, gl.VERTEX_SHADER, VERT)
+      fs = compile(gl, gl.FRAGMENT_SHADER, FRAG)
+      if (!vs || !fs) return false
+      prog = gl.createProgram()!
+      gl.attachShader(prog, vs)
+      gl.attachShader(prog, fs)
+      gl.linkProgram(prog)
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false
+      gl.useProgram(prog)
+      buf = gl.createBuffer()
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([-1, -1, 3, -1, -1, 3]),
+        gl.STATIC_DRAW,
+      )
+      const aPos = gl.getAttribLocation(prog, 'a_pos')
+      gl.enableVertexAttribArray(aPos)
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
+      uRes = gl.getUniformLocation(prog, 'u_res')
+      uTime = gl.getUniformLocation(prog, 'u_time')
+      return true
+    }
+
+    const startLoop = () => {
+      resize()
+      if (reduce) {
+        gl!.uniform1f(uTime, 0)
+        gl!.drawArrays(gl!.TRIANGLES, 0, 3)
+      } else {
+        start = performance.now()
+        raf = requestAnimationFrame(render)
+      }
+    }
+
+    const onLost = (e: Event) => {
+      e.preventDefault()
+      cancelAnimationFrame(raf)
+    }
+    const onRestored = () => {
+      if (!disposed && init()) startLoop()
+    }
+    canvas.addEventListener('webglcontextlost', onLost)
+    canvas.addEventListener('webglcontextrestored', onRestored)
+
+    const ro = new ResizeObserver(resize)
+
+    if (init()) {
+      ro.observe(canvas)
+      startLoop()
     }
 
     return () => {
+      disposed = true
       cancelAnimationFrame(raf)
       ro.disconnect()
-      gl.deleteProgram(prog)
-      gl.deleteShader(vs)
-      gl.deleteShader(fs)
-      gl.deleteBuffer(buf)
-      gl.getExtension('WEBGL_lose_context')?.loseContext()
+      canvas.removeEventListener('webglcontextlost', onLost)
+      canvas.removeEventListener('webglcontextrestored', onRestored)
+      if (gl) {
+        gl.deleteProgram(prog)
+        gl.deleteShader(vs)
+        gl.deleteShader(fs)
+        gl.deleteBuffer(buf)
+        gl.getExtension('WEBGL_lose_context')?.loseContext()
+      }
     }
   }, [])
 
