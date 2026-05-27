@@ -68,7 +68,7 @@ export function ReactPreview({
 
   return (
     <div className='flex h-[55%] min-h-[200px] shrink-0 flex-col border-t border-white/[0.06] bg-[#0a0a0c]'>
-      <div className='flex h-9 shrink-0 items-center justify-between border-b border-white/[0.06] px-4 font-mono text-[11px] tracking-wider text-muted-foreground uppercase'>
+      <div className='flex h-9 shrink-0 items-center justify-between border-b border-white/[0.06] px-4 font-mono text-[11px] tracking-wider text-zinc-400 uppercase'>
         <span className='flex items-center gap-1.5'>
           <Eye className='size-3.5' /> Preview
         </span>
@@ -77,14 +77,14 @@ export function ReactPreview({
             type='button'
             onClick={onClose}
             aria-label='Fechar preview'
-            className='-mr-1 grid size-6 place-items-center rounded text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
+            className='-mr-1 grid size-6 place-items-center rounded text-zinc-400 hover:bg-white/10 hover:text-white'
           >
             <X className='size-3.5' />
           </button>
         )}
       </div>
       {error ? (
-        <div className='px-4 py-3 font-mono text-[12px] text-destructive-foreground'>
+        <div className='px-4 py-3 font-mono text-[12px] text-red-400'>
           ✕ {error}
         </div>
       ) : (
