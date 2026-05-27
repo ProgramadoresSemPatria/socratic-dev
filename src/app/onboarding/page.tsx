@@ -64,40 +64,14 @@ const levels = [
   },
 ]
 
-const styles = [
-  {
-    id: 'strict',
-    name: 'Tech lead implacável',
-    desc: "Pergunta tudo. Não aceita 'porque sim'.",
-    emoji: '⚡',
-  },
-  {
-    id: 'kind',
-    name: 'Mentor paciente',
-    desc: 'Guia firme, mas com carinho. Hint extra.',
-    emoji: '🌱',
-  },
-  {
-    id: 'rubber',
-    name: 'Pato de borracha',
-    desc: 'Quase só ouve. Você fala — e descobre.',
-    emoji: '🦆',
-  },
-]
-
-type Step = 0 | 1 | 2 | 3
+type Step = 0 | 1 | 2
 
 export default function OnboardingPage() {
   const [step, setStep] = React.useState<Step>(0)
   const [stack, setStack] = React.useState<string | null>(null)
   const [level, setLevel] = React.useState<string | null>(null)
-  const [style, setStyle] = React.useState<string | null>(null)
 
-  const canNext =
-    (step === 0 && stack) ||
-    (step === 1 && level) ||
-    (step === 2 && style) ||
-    step === 3
+  const canNext = (step === 0 && stack) || (step === 1 && level) || step === 2
 
   return (
     <div className='relative flex flex-1 flex-col'>
@@ -108,18 +82,18 @@ export default function OnboardingPage() {
         <div className='mx-auto flex w-full max-w-3xl flex-1 flex-col px-4'>
           {/* Stepper */}
           <div className='mb-12 flex items-center gap-2'>
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2].map((i) => (
               <div key={i} className='flex-1'>
                 <div
                   className={cn(
                     'h-1 rounded-full transition-all duration-500',
                     step >= i
-                      ? 'bg-gradient-to-r from-iris to-mint'
-                      : 'bg-white/[0.06]',
+                      ? 'bg-linear-to-r from-iris to-mint'
+                      : 'bg-white/6',
                   )}
                 />
                 <div className='mt-2 font-mono text-[10px] tracking-wider text-muted-foreground/70 uppercase'>
-                  {['Stack', 'Nível', 'Estilo', 'Pronto'][i]}
+                  {['Stack', 'Nível', 'Pronto'][i]}
                 </div>
               </div>
             ))}
@@ -143,7 +117,7 @@ export default function OnboardingPage() {
                     >
                       <div
                         className={cn(
-                          'grid size-12 place-items-center rounded-2xl border border-white/10 bg-gradient-to-br font-mono text-sm font-bold',
+                          'grid size-12 place-items-center rounded-2xl border border-white/10 bg-linear-to-br font-mono text-sm font-bold',
                           s.gradient,
                         )}
                       >
@@ -186,8 +160,8 @@ export default function OnboardingPage() {
                               className={cn(
                                 'h-2 w-6 rounded-full',
                                 idx < l.intensity
-                                  ? 'bg-gradient-to-r from-iris to-mint'
-                                  : 'bg-white/[0.08]',
+                                  ? 'bg-linear-to-r from-iris to-mint'
+                                  : 'bg-white/8',
                               )}
                             />
                           ))}
@@ -198,7 +172,7 @@ export default function OnboardingPage() {
                           <div className='font-heading text-lg font-semibold tracking-tight'>
                             {l.name}
                           </div>
-                          <span className='rounded-full bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] tracking-wider text-muted-foreground/70 uppercase'>
+                          <span className='rounded-full bg-white/4 px-2 py-0.5 font-mono text-[10px] tracking-wider text-muted-foreground/70 uppercase'>
                             {l.tag}
                           </span>
                         </div>
@@ -213,38 +187,6 @@ export default function OnboardingPage() {
             )}
 
             {step === 2 && (
-              <StepShell
-                key='style'
-                eyebrow='03 · Estilo do tutor'
-                title='Quem você quer do outro lado?'
-                subtitle='Você sempre pode trocar depois. Mas a vibe inicial muda tudo.'
-              >
-                <div className='space-y-3'>
-                  {styles.map((s, i) => (
-                    <Tile
-                      key={s.id}
-                      i={i}
-                      selected={style === s.id}
-                      onClick={() => setStyle(s.id)}
-                    >
-                      <div className='grid size-12 place-items-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-2xl'>
-                        {s.emoji}
-                      </div>
-                      <div className='flex-1'>
-                        <div className='font-heading text-lg font-semibold tracking-tight'>
-                          {s.name}
-                        </div>
-                        <div className='text-sm text-muted-foreground'>
-                          {s.desc}
-                        </div>
-                      </div>
-                    </Tile>
-                  ))}
-                </div>
-              </StepShell>
-            )}
-
-            {step === 3 && (
               <motion.div
                 key='ready'
                 initial={{ opacity: 0, y: 24 }}
@@ -268,7 +210,7 @@ export default function OnboardingPage() {
                   Vou gerar um desafio real, com cliente fictício e tudo. Sem
                   resposta pronta. Sem cópia.
                 </p>
-                <div className='mx-auto mb-10 grid max-w-xl gap-3 sm:grid-cols-3'>
+                <div className='mx-auto mb-10 grid max-w-sm gap-3 sm:grid-cols-2'>
                   <SummaryItem
                     label='Stack'
                     value={stacks.find((s) => s.id === stack)?.name ?? '-'}
@@ -277,25 +219,32 @@ export default function OnboardingPage() {
                     label='Nível'
                     value={levels.find((l) => l.id === level)?.name ?? '-'}
                   />
-                  <SummaryItem
-                    label='Tutor'
-                    value={styles.find((s) => s.id === style)?.name ?? '-'}
-                  />
                 </div>
-                <Button
-                  size='xl'
-                  className='glow-iris group h-12 rounded-full border-transparent bg-foreground pr-4 pl-5 text-[15px] text-background hover:bg-foreground/90'
-                  render={<Link href='/challenge' />}
-                >
-                  <Sparkles className='size-4' />
-                  Gerar meu desafio
-                  <ArrowRight className='size-4 transition-transform group-hover:translate-x-1' />
-                </Button>
+                <div className='relative flex w-full items-center justify-between'>
+                  <Button
+                    variant='ghost'
+                    size='lg'
+                    onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
+                    className='rounded-full'
+                  >
+                    <ArrowLeft className='size-4' /> Voltar
+                  </Button>
+                  <Button
+                    size='xl'
+                    className='glow-iris group absolute left-1/2 h-12 -translate-x-1/2 rounded-full border-transparent bg-foreground pr-4 pl-5 text-[15px] text-background hover:bg-foreground/90'
+                    render={<Link href='/challenge' />}
+                  >
+                    <Sparkles className='size-4' />
+                    Gerar meu desafio
+                    <ArrowRight className='size-4 transition-transform group-hover:translate-x-1' />
+                  </Button>
+                  <div />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {step < 3 && (
+          {step < 2 && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -307,14 +256,14 @@ export default function OnboardingPage() {
                 size='lg'
                 onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
                 disabled={step === 0}
-                className='rounded-full'
+                className={cn('rounded-full', step === 0 && 'invisible')}
               >
                 <ArrowLeft className='size-4' /> Voltar
               </Button>
               <Button
                 size='lg'
                 disabled={!canNext}
-                onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
+                onClick={() => setStep((s) => Math.min(2, s + 1) as Step)}
                 className='rounded-full border-transparent bg-foreground pr-3 pl-4 text-background hover:bg-foreground/90 disabled:opacity-40'
               >
                 Continuar <ArrowRight className='size-4' />
@@ -382,17 +331,15 @@ function Tile({
       className={cn(
         'glass flex w-full items-center gap-4 rounded-2xl p-5 text-left transition-all',
         selected
-          ? 'border-iris/40 bg-white/[0.06] ring-2 ring-iris/30'
-          : 'hover:bg-white/[0.04]',
+          ? 'border-iris/40 bg-white/6 ring-2 ring-iris/30'
+          : 'hover:bg-white/4',
       )}
     >
       {children}
       <div
         className={cn(
           'grid size-6 place-items-center rounded-full border transition-all',
-          selected
-            ? 'border-iris bg-iris'
-            : 'border-white/[0.12] bg-white/[0.02]',
+          selected ? 'border-iris bg-iris' : 'border-white/12 bg-white/2',
         )}
       >
         {selected && <Check className='size-3.5 text-background' />}
