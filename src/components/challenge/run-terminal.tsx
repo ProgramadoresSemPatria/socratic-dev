@@ -2,20 +2,22 @@
 
 import type { RunResult } from '@/lib/runner/types'
 import { cn } from '@/lib/utils'
-import { CheckCircle2, Loader2, Terminal, XCircle } from 'lucide-react'
+import { CheckCircle2, Loader2, Terminal, X, XCircle } from 'lucide-react'
 
 export function RunTerminal({
   result,
   running,
+  onClose,
 }: {
   result: RunResult | null
   running: boolean
+  onClose?: () => void
 }) {
   const passed = result?.tests.filter((t) => t.passed).length ?? 0
   const total = result?.tests.length ?? 0
 
   return (
-    <div className='flex min-h-[150px] shrink-0 flex-col border-t border-white/[0.06] bg-[#0a0a0c]'>
+    <div className='flex h-[40%] min-h-[150px] shrink-0 flex-col border-t border-white/[0.06] bg-[#0a0a0c]'>
       <div className='flex h-9 shrink-0 items-center justify-between border-b border-white/[0.06] px-4 font-mono text-[11px] tracking-wider text-muted-foreground uppercase'>
         <span className='flex items-center gap-1.5'>
           <Terminal className='size-3.5' /> Terminal
