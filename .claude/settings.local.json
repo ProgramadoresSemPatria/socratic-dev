@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(dir)",
-      "Bash(bun --version)",
-      "Bash(bunx --bun create-next-app@latest . --typescript --tailwind --app --no-src-dir --import-alias \"@/*\" --no-eslint --turbopack --yes)"
-    ]
-  }
-}
