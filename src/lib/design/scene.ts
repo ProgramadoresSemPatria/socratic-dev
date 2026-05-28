@@ -45,12 +45,11 @@ export async function buildSceneElements(
   edges: { from: string; to: string; label?: string }[],
 ): Promise<readonly unknown[]> {
   const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw')
-  const W = 240
-  const H = 104
-  const GAP_X = 80
-  const GAP_Y = 150
+  const W = 220
+  const H = 96
+  const GAP_X = 130
+  const GAP_Y = 210
 
-  // Group nodes into tiers and stack them top→bottom; center each tier.
   const tiers = new Map<number, typeof nodes>()
   for (const n of nodes) {
     const t = TIER[n.type ?? ''] ?? 2
@@ -97,24 +96,51 @@ export async function buildSceneElements(
   const resolve = (ref: string): string | undefined =>
     byId.get(ref) ?? byLabel.get((ref ?? '').trim().toLowerCase())
 
+  const border = (cx: number, cy: number, tx: number, ty: number) => {
+    const dx = tx - cx
+    const dy = ty - cy
+    const s = Math.min(W / 2 / (Math.abs(dx) || 1e-6), H / 2 / (Math.abs(dy) || 1e-6))
+    return [cx + dx * s, cy + dy * s] as const
+  }
+
+  const seen = new Map<string, number>()
   for (const e of edges) {
     const fromId = resolve(e.from)
     const toId = resolve(e.to)
     if (!fromId || !toId || fromId === toId) continue
     const a = pos.get(fromId)!
     const b = pos.get(toId)!
-    const ax = a.x + W / 2
-    const ay = a.y + H / 2
-    const bx = b.x + W / 2
-    const by = b.y + H / 2
+    const acx = a.x + W / 2
+    const acy = a.y + H / 2
+    const bcx = b.x + W / 2
+    const bcy = b.y + H / 2
+    const [sx, sy] = border(acx, acy, bcx, bcy)
+    const [ex, ey] = border(bcx, bcy, acx, acy)
+
+    const k = seen.get(`${fromId}>${toId}`) ?? 0
+    seen.set(`${fromId}>${toId}`, k + 1)
+    const sameRow = Math.abs(a.y - b.y) < 1
+
+    let pts: number[][] = [
+      [0, 0],
+      [ex - sx, ey - sy],
+    ]
+    if (sameRow) {
+      const lift = 70 + k * 26
+      pts = [[0, 0], [(ex - sx) / 2, -lift], [ex - sx, ey - sy]]
+    } else if (k > 0) {
+      const len = Math.hypot(ex - sx, ey - sy) || 1
+      const off = k * 28
+      const mx = (ex - sx) / 2 + (-(ey - sy) / len) * off
+      const my = (ey - sy) / 2 + ((ex - sx) / len) * off
+      pts = [[0, 0], [mx, my], [ex - sx, ey - sy]]
+    }
+
     skeleton.push({
       type: 'arrow',
-      x: ax,
-      y: ay,
-      points: [
-        [0, 0],
-        [bx - ax, by - ay],
-      ],
+      x: sx,
+      y: sy,
+      points: pts,
       start: { id: fromId },
       end: { id: toId },
       ...(e.label ? { label: { text: e.label } } : {}),
