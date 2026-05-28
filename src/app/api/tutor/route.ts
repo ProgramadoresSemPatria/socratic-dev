@@ -24,12 +24,23 @@ const HINT_DESIGN: Record<number, string> = {
   3: 'Pista NÍVEL 3 (quase explícita): descreva em palavras a forma da arquitetura, mas ainda assim NÃO entregue o diagrama pronto e peça pro aluno entender o porquê.',
 }
 
+const SOLVE_CODE = `Você é um tech lead. O aluno usou o recurso pago "Resolver pra mim" (último recurso, caro).
+ENTREGUE a solução COMPLETA do desafio em português do Brasil: o código final correto, em um bloco de código, com comentários curtos. Depois, 2 a 3 linhas explicando o raciocínio principal. Sem enrolação.`
+
+const SOLVE_DESIGN = `Você é um staff engineer. O aluno usou o recurso pago "Resolver pra mim" (último recurso, caro).
+ENTREGUE a arquitetura recomendada em português do Brasil: liste os componentes/serviços, onde cada dado vive, o fluxo dos dados e o porquê das escolhas (trade-offs). Markdown curto e direto.`
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
     const domain: 'code' | 'design' =
       body.domain === 'design' ? 'design' : 'code'
-    const mode: 'reply' | 'hint' = body.mode === 'hint' ? 'hint' : 'reply'
+    const mode: 'reply' | 'hint' | 'solve' =
+      body.mode === 'hint'
+        ? 'hint'
+        : body.mode === 'solve'
+          ? 'solve'
+          : 'reply'
     const messages: ChatMsg[] = Array.isArray(body.messages)
       ? body.messages
       : []
@@ -38,19 +49,30 @@ export async function POST(req: Request) {
     const briefing: string = body.briefing ?? ''
 
     const isDesign = domain === 'design'
-    const system = isDesign ? SYSTEM_DESIGN : SYSTEM_CODE
     const hintGuide = isDesign ? HINT_DESIGN : HINT_CODE
+    const system =
+      mode === 'solve'
+        ? isDesign
+          ? SOLVE_DESIGN
+          : SOLVE_CODE
+        : isDesign
+          ? SYSTEM_DESIGN
+          : SYSTEM_CODE
 
     const transcript = messages
       .map((m) => `${m.role === 'ai' ? 'Tutor' : 'Aluno'}: ${m.text}`)
       .join('\n')
 
     const task =
-      mode === 'hint'
-        ? (hintGuide[Number(body.hintLevel) || 1] ?? hintGuide[1])
-        : isDesign
-          ? 'Responda com UMA pergunta-guia para o próximo passo do design.'
-          : 'Responda com UMA pergunta-guia para o próximo passo do aluno.'
+      mode === 'solve'
+        ? isDesign
+          ? 'Entregue a arquitetura completa recomendada.'
+          : 'Entregue a solução completa (código pronto + breve explicação).'
+        : mode === 'hint'
+          ? (hintGuide[Number(body.hintLevel) || 1] ?? hintGuide[1])
+          : isDesign
+            ? 'Responda com UMA pergunta-guia para o próximo passo do design.'
+            : 'Responda com UMA pergunta-guia para o próximo passo do aluno.'
 
     const user = [
       `Desafio: ${title}`,
@@ -68,7 +90,7 @@ export async function POST(req: Request) {
     const text = await askClaude({
       system,
       user,
-      maxTokens: 800,
+      maxTokens: mode === 'solve' ? 2048 : 800,
       effort: 'medium',
     })
     return Response.json({ text })

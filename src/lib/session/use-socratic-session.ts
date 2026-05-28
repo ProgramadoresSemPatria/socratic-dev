@@ -3,6 +3,7 @@
 import type { ChatMsg } from '@/lib/ai/types'
 import { useUser } from '@/lib/auth/use-user'
 import { loadDraft, saveDraft } from '@/lib/draft'
+import { SOLVE_COST, SOLVE_INDEPENDENCE_PENALTY } from '@/lib/hints'
 import * as React from 'react'
 
 export function useSocraticSession<TWork>(opts: {
@@ -22,6 +23,9 @@ export function useSocraticSession<TWork>(opts: {
   const [sessionId, setSessionId] = React.useState<string | null>(null)
   const [work, setWork] = React.useState<TWork>(initialWork)
   const [ready, setReady] = React.useState(false)
+  const [hintsRemaining, setHintsRemaining] = React.useState<number | null>(
+    null,
+  )
 
   const startedAtRef = React.useRef<number>(Date.now())
   const scrollRef = React.useRef<HTMLDivElement>(null)
@@ -53,6 +57,13 @@ export function useSocraticSession<TWork>(opts: {
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.id && setSessionId(d.id))
+      .catch(() => {})
+
+    fetch(`/api/hints?user_id=${user.id}`)
+      .then((r) => r.json())
+      .then((b) => {
+        if (typeof b?.remaining === 'number') setHintsRemaining(b.remaining)
+      })
       .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challenge, user])
