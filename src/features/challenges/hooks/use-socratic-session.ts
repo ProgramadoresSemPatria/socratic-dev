@@ -2,6 +2,11 @@
 
 import { useUser } from '@/features/auth/hooks/use-user'
 import {
+  buyHints as buyHintsAction,
+  getHintBalance,
+  logHint,
+} from '@/features/hints/actions'
+import {
   SOLVE_COST,
   SOLVE_INDEPENDENCE_PENALTY,
 } from '@/features/hints/constants'
@@ -58,11 +63,8 @@ export function useSocraticSession<TWork>(opts: {
       .then((d) => d?.id && setSessionId(d.id))
       .catch(() => {})
 
-    fetch(`/api/hints?user_id=${user.id}`)
-      .then((r) => r.json())
-      .then((b) => {
-        if (typeof b?.remaining === 'number') setHintsRemaining(b.remaining)
-      })
+    getHintBalance(user.id)
+      .then((b) => setHintsRemaining(b.remaining))
       .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challenge, user])
@@ -99,15 +101,11 @@ export function useSocraticSession<TWork>(opts: {
     setIndependence((i) => Math.max(0, i - penalty))
     setHintsRemaining((r) => (r === null ? r : Math.max(0, r - cost)))
     if (sessionId && user) {
-      fetch('/api/hints', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sessionId,
-          user_id: user.id,
-          hint_level: level,
-          cost,
-        }),
+      logHint({
+        sessionId,
+        userId: user.id,
+        hintLevel: level,
+        cost,
       }).catch(() => {})
     }
   }
@@ -123,15 +121,9 @@ export function useSocraticSession<TWork>(opts: {
   async function buyHints() {
     if (!user) return
     try {
-      await fetch('/api/hints/buy', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id }),
-      })
-      const b = await fetch(`/api/hints?user_id=${user.id}`).then((r) =>
-        r.json(),
-      )
-      if (typeof b?.remaining === 'number') setHintsRemaining(b.remaining)
+      await buyHintsAction(user.id)
+      const b = await getHintBalance(user.id)
+      setHintsRemaining(b.remaining)
     } catch {
       // ignore
     }

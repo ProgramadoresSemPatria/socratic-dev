@@ -1,6 +1,7 @@
 'use client'
 
 import { useUser } from '@/features/auth/hooks/use-user'
+import { buyHints, getHintBalance } from '@/features/hints/actions'
 import { cn } from '@/lib/utils'
 import { Lightbulb, Plus } from 'lucide-react'
 import { motion, useMotionValueEvent, useScroll } from 'motion/react'
@@ -13,11 +14,8 @@ function HintsChip({ userId }: { userId: string }) {
   const [buying, setBuying] = React.useState(false)
 
   const refresh = React.useCallback(() => {
-    fetch(`/api/hints?user_id=${userId}`)
-      .then((r) => r.json())
-      .then((b) => {
-        if (typeof b?.remaining === 'number') setRemaining(b.remaining)
-      })
+    getHintBalance(userId)
+      .then((b) => setRemaining(b.remaining))
       .catch(() => {})
   }, [userId])
 
@@ -29,11 +27,7 @@ function HintsChip({ userId }: { userId: string }) {
     if (buying) return
     setBuying(true)
     try {
-      await fetch('/api/hints/buy', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ user_id: userId }),
-      })
+      await buyHints(userId)
       refresh()
     } finally {
       setBuying(false)
