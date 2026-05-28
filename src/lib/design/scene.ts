@@ -29,6 +29,17 @@ const NODE_STYLE: Record<
   external: { shape: 'rectangle', emoji: '☁️', bg: '#eef0f2' },
 }
 
+const TIER: Record<string, number> = {
+  client: 0,
+  gateway: 1,
+  service: 2,
+  external: 2,
+  queue: 3,
+  cache: 3,
+  database: 4,
+  storage: 4,
+}
+
 export async function buildSceneElements(
   nodes: { id: string; label: string; type?: string; note?: string }[],
   edges: { from: string; to: string; label?: string }[],
