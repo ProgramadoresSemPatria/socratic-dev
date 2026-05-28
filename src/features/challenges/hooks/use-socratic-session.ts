@@ -1,8 +1,11 @@
 'use client'
 
 import { useUser } from '@/features/auth/hooks/use-user'
+import {
+  SOLVE_COST,
+  SOLVE_INDEPENDENCE_PENALTY,
+} from '@/features/hints/constants'
 import type { ChatMsg } from '@/lib/ai/types'
-import { SOLVE_COST, SOLVE_INDEPENDENCE_PENALTY } from '@/lib/hints'
 import * as React from 'react'
 import { loadDraft, saveDraft } from '../draft'
 

@@ -1,7 +1,7 @@
 'use client'
 
+import { SOLVE_COST } from '@/features/hints/constants'
 import type { ChatMsg } from '@/lib/ai/types'
-import { SOLVE_COST } from '@/lib/hints'
 import { cn } from '@/lib/utils'
 import { Lightbulb, Send, Sparkles, Wand2 } from 'lucide-react'
 import { motion } from 'motion/react'

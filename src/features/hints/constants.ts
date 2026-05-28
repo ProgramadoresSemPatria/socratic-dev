@@ -7,10 +7,3 @@ export const FREE_DAILY_HINTS = 10
 // solution. Costs many hint credits and tanks the independence score.
 export const SOLVE_COST = 5
 export const SOLVE_INDEPENDENCE_PENALTY = 40
-
-export type HintBalance = {
-  usedToday: number
-  freeLimit: number
-  bonus: number
-  remaining: number
-}
