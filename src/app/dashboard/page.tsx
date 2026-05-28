@@ -526,9 +526,6 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
                           ? 'JavaScript'
                           : 'TypeScript'}
                     </span>
-                    <span className='rounded-full border border-[#DFE5E9] bg-white px-2 py-0.5 text-[#6b6478]'>
-                      {c.challenges?.kind === 'design' ? 'Design' : 'Código'}
-                    </span>
                     <span className='text-[#6b6478]'>
                       {STATUS_LABEL[c.status] ?? c.status}
                     </span>

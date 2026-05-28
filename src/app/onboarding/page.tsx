@@ -9,8 +9,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Code2,
   Info,
   Loader2,
+  Palette,
   Sparkles,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
@@ -104,11 +106,26 @@ const DB_TO_LEVEL: Record<string, string> = {
   advanced: 'advanced',
 }
 
+const tracks = [
+  {
+    id: 'code',
+    name: 'Código',
+    desc: 'Resolva um problema real no editor, com testes.',
+    Icon: Code2,
+  },
+  {
+    id: 'design',
+    name: 'Design System',
+    desc: 'Desenhe a arquitetura num canvas; a IA analisa.',
+    Icon: Palette,
+  },
+]
+
 const stepMeta = [
   {
-    eyebrow: '01 · Stack',
-    title: 'Em qual linguagem você quer apanhar hoje?',
-    subtitle: 'A IA gera desafios realistas no idioma da sua escolha.',
+    eyebrow: '01 · Trilha',
+    title: 'Como você quer treinar hoje?',
+    subtitle: 'Código ou arquitetura de design system — escolha a trilha.',
   },
   {
     eyebrow: '02 · Nível',
@@ -128,6 +145,7 @@ export default function OnboardingPage() {
   const router = useRouter()
   const { user } = useUser()
   const [step, setStep] = React.useState<Step>(0)
+  const [track, setTrack] = React.useState<string | null>(null)
   const [stack, setStack] = React.useState<string | null>(null)
   const [level, setLevel] = React.useState<string | null>(null)
   const [starting, setStarting] = React.useState(false)
@@ -138,14 +156,24 @@ export default function OnboardingPage() {
   React.useEffect(() => {
     if (!user || started.current) return
     const meta = user.user_metadata as
-      | { preferred_stack?: string; preferred_level?: string }
+      | {
+          preferred_track?: string
+          preferred_stack?: string
+          preferred_level?: string
+        }
       | undefined
     // Already onboarded → skip the steps and generate straight from the profile.
-    if (meta?.preferred_stack && meta?.preferred_level) {
+    if (meta?.preferred_track === 'design' && meta?.preferred_level) {
       started.current = true
-      generate(meta.preferred_stack, meta.preferred_level)
+      generate('design', meta.preferred_level, 'design')
       return
     }
+    if (meta?.preferred_stack && meta?.preferred_level) {
+      started.current = true
+      generate(meta.preferred_stack, meta.preferred_level, 'code')
+      return
+    }
+    if (meta?.preferred_track) setTrack(meta.preferred_track)
     if (meta?.preferred_stack && DB_TO_STACK[meta.preferred_stack])
       setStack(DB_TO_STACK[meta.preferred_stack])
     if (meta?.preferred_level && DB_TO_LEVEL[meta.preferred_level])
@@ -153,19 +181,30 @@ export default function OnboardingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  const canNext = (step === 0 && stack) || (step === 1 && level) || step === 2
+  const canNext =
+    (step === 0 && track && (track === 'design' || stack)) ||
+    (step === 1 && level) ||
+    step === 2
 
-  async function generate(dbStack: string, dbLevel: string) {
+  async function generate(dbStack: string, dbLevel: string, trk: string) {
     setError(null)
     setStarting(true)
     await supabase.auth.updateUser({
-      data: { preferred_stack: dbStack, preferred_level: dbLevel },
+      data: {
+        preferred_track: trk,
+        preferred_stack: dbStack,
+        preferred_level: dbLevel,
+      },
     })
     try {
+      const body =
+        trk === 'design'
+          ? { kind: 'design', level: dbLevel }
+          : { stack: dbStack, level: dbLevel }
       const res = await fetch('/api/generate-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stack: dbStack, level: dbLevel }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok || !data?.id) {
@@ -177,7 +216,9 @@ export default function OnboardingPage() {
         started.current = false
         return
       }
-      router.push(`/challenge?id=${data.id}`)
+      router.push(
+        trk === 'design' ? `/design?id=${data.id}` : `/challenge?id=${data.id}`,
+      )
     } catch {
       setError('Falha ao falar com a IA. Verifique a conexão e tente de novo.')
       setStarting(false)
@@ -191,9 +232,13 @@ export default function OnboardingPage() {
       router.push('/login?next=/onboarding')
       return
     }
-    const dbStack = STACK_TO_DB[stack ?? 'js'] ?? 'javascript'
     const dbLevel = LEVEL_TO_DB[level ?? 'starter'] ?? 'beginner'
-    generate(dbStack, dbLevel)
+    if (track === 'design') {
+      generate('design', dbLevel, 'design')
+      return
+    }
+    const dbStack = STACK_TO_DB[stack ?? 'js'] ?? 'javascript'
+    generate(dbStack, dbLevel, 'code')
   }
 
   const meta = stepMeta[step]
@@ -231,7 +276,7 @@ export default function OnboardingPage() {
                     </div>
                     <h1 className='type-h2'>Quase lá.</h1>
                     <p className='type-body mt-3 max-w-[44ch]'>
-                      Montando um desafio na sua stack e nível salvos.
+                      Montando um desafio com base nas suas escolhas.
                     </p>
                   </div>
                 ) : (
@@ -246,7 +291,7 @@ export default function OnboardingPage() {
                             )}
                           />
                           <div className='mt-2 font-mono text-[10px] tracking-wider text-[#6b6478] uppercase'>
-                            {['Stack', 'Nível', 'Pronto'][i]}
+                            {['Trilha', 'Nível', 'Pronto'][i]}
                           </div>
                         </div>
                       ))}
@@ -269,29 +314,70 @@ export default function OnboardingPage() {
               ) : (
                 <>
               {step === 0 && (
-                <div className='grid gap-3 sm:grid-cols-2'>
-                  {stacks.map((s) => (
-                    <Tile
-                      key={s.id}
-                      selected={stack === s.id}
-                      onClick={() => setStack(s.id)}
-                    >
-                      <div
-                        className={cn(
-                          'grid size-12 place-items-center rounded-2xl border border-black/5 bg-linear-to-br font-mono text-sm font-bold text-[#1b1916]',
-                          s.gradient,
-                        )}
+                <div className='space-y-4'>
+                  <div className='grid gap-3 sm:grid-cols-2'>
+                    {tracks.map((t) => (
+                      <Tile
+                        key={t.id}
+                        selected={track === t.id}
+                        onClick={() => setTrack(t.id)}
                       >
-                        {s.icon}
-                      </div>
-                      <div className='flex-1'>
-                        <div className='font-heading text-lg font-medium tracking-tight text-[#1b1916]'>
-                          {s.name}
+                        <div className='grid size-12 place-items-center rounded-2xl bg-[#dad8ea]/55 text-[#1b1916]'>
+                          <t.Icon className='size-6' strokeWidth={1.5} />
                         </div>
-                        <div className='text-sm text-[#6b6478]'>{s.desc}</div>
+                        <div className='flex-1'>
+                          <div className='font-heading text-lg font-medium tracking-tight text-[#1b1916]'>
+                            {t.name}
+                          </div>
+                          <div className='text-sm text-[#6b6478]'>{t.desc}</div>
+                        </div>
+                      </Tile>
+                    ))}
+                  </div>
+
+                  {track === 'code' && (
+                    <div>
+                      <div className='mb-2 font-mono text-[11px] tracking-wider text-[#6b6478] uppercase'>
+                        Linguagem
                       </div>
-                    </Tile>
-                  ))}
+                      <div className='grid gap-3 sm:grid-cols-2'>
+                        {stacks.map((s) => (
+                          <Tile
+                            key={s.id}
+                            selected={stack === s.id}
+                            onClick={() => setStack(s.id)}
+                          >
+                            <div
+                              className={cn(
+                                'grid size-12 place-items-center rounded-2xl border border-black/5 bg-linear-to-br font-mono text-sm font-bold text-[#1b1916]',
+                                s.gradient,
+                              )}
+                            >
+                              {s.icon}
+                            </div>
+                            <div className='flex-1'>
+                              <div className='font-heading text-lg font-medium tracking-tight text-[#1b1916]'>
+                                {s.name}
+                              </div>
+                              <div className='text-sm text-[#6b6478]'>
+                                {s.desc}
+                              </div>
+                            </div>
+                          </Tile>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {track === 'design' && (
+                    <div className='rounded-2xl border border-[#DFE5E9] bg-[#F7F9FA] p-4 text-sm text-[#6b6478]'>
+                      Design System não precisa de linguagem — você vai{' '}
+                      <span className='font-medium text-[#1b1916]'>
+                        desenhar a arquitetura
+                      </span>{' '}
+                      num canvas e a IA analisa o que você criou.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -335,8 +421,12 @@ export default function OnboardingPage() {
               {step === 2 && (
                 <div className='grid gap-3 sm:grid-cols-2'>
                   <SummaryItem
-                    label='Stack'
-                    value={stacks.find((s) => s.id === stack)?.name ?? '—'}
+                    label='Trilha'
+                    value={
+                      track === 'design'
+                        ? 'Design System'
+                        : (stacks.find((s) => s.id === stack)?.name ?? 'Código')
+                    }
                   />
                   <SummaryItem
                     label='Nível'
