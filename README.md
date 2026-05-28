@@ -169,5 +169,5 @@ npm run build   # valida o build de produção antes de subir
 ---
 
 <div align="center">
-Feito para a hackathon HB01-2026 · veja <a href="./HACKATHON.md">HACKATHON.md</a>
+Feito para a hackathon HB01-2026
 </div>
