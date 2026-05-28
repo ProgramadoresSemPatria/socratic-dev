@@ -1,12 +1,10 @@
+import { requireUser, serverError } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const user_id = searchParams.get('user_id')
-
-  if (!user_id) {
-    return Response.json({ error: 'user_id is required' }, { status: 400 })
-  }
+  const auth = await requireUser(request)
+  if (auth instanceof Response) return auth
+  const user_id = auth.user.id
 
   const [sessionsResult, hintsResult, weekResult] = await Promise.all([
     supabaseAdmin
@@ -27,12 +25,9 @@ export async function GET(request: Request) {
       .gte('started_at', getDateDaysAgo(7)),
   ])
 
-  if (sessionsResult.error)
-    return Response.json({ error: sessionsResult.error.message }, { status: 500 })
-  if (hintsResult.error)
-    return Response.json({ error: hintsResult.error.message }, { status: 500 })
-  if (weekResult.error)
-    return Response.json({ error: weekResult.error.message }, { status: 500 })
+  if (sessionsResult.error) return serverError('stats', sessionsResult.error)
+  if (hintsResult.error) return serverError('stats', hintsResult.error)
+  if (weekResult.error) return serverError('stats', weekResult.error)
 
   const sessions = sessionsResult.data
   const hints = hintsResult.data

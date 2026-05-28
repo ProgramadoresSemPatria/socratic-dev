@@ -79,7 +79,7 @@ export async function POST(req: Request) {
       maxTokens: 2048,
       effort: 'medium',
     })
-    return Response.json({ code: stripFences(raw) })
+    return Response.json({ code: stripFences(raw), remaining })
   } catch (e) {
     return aiErrorResponse(e)
   }

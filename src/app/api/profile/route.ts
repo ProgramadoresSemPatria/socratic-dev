@@ -1,39 +1,33 @@
+import { requireUser, serverError } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const user_id = searchParams.get('user_id')
-
-  if (!user_id) {
-    return Response.json({ error: 'user_id is required' }, { status: 400 })
-  }
+export async function GET(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof Response) return auth
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .select('*')
-    .eq('id', user_id)
+    .eq('id', auth.user.id)
     .single()
 
-  if (error) return Response.json({ error: error.message }, { status: 500 })
-
+  if (error) return serverError('profile.GET', error)
   return Response.json(data)
 }
 
-export async function POST(request: Request) {
-  const { user_id, preferred_stack, preferred_level } = await request.json()
+export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof Response) return auth
 
-  if (!user_id) {
-    return Response.json({ error: 'user_id is required' }, { status: 400 })
-  }
+  const { preferred_stack, preferred_level } = await req.json()
 
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .update({ preferred_stack, preferred_level })
-    .eq('id', user_id)
+    .eq('id', auth.user.id)
     .select()
     .single()
 
-  if (error) return Response.json({ error: error.message }, { status: 500 })
-
+  if (error) return serverError('profile.POST', error)
   return Response.json(data)
 }

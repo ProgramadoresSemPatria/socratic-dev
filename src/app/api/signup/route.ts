@@ -1,7 +1,10 @@
+import { clientIp, rateLimit, tooMany } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 export async function POST(req: Request) {
   try {
+    if (!rateLimit(`signup:${clientIp(req)}`, 5, 60_000)) return tooMany()
+
     const { email, password } = await req.json()
     if (!email || !password) {
       return Response.json(

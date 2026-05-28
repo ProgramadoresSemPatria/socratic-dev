@@ -1,12 +1,16 @@
 import { aiErrorResponse } from '@/lib/ai/client'
 import { generateChallenge, type GenLevel } from '@/lib/ai/generate-challenge'
+import { rateLimit, requireUser, tooMany } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-// Returns a challenge FAST: reuses an existing one the user hasn't done yet
-// (instant, no token cost). Only generates a new one when the pool is
-// exhausted. This is the main speed lever + grows a shared library.
 export async function POST(req: Request) {
   try {
+    const auth = await requireUser(req)
+    if (auth instanceof Response) return auth
+    const userId = auth.user.id
+
+    if (!rateLimit(`next-challenge:${userId}`, 20, 60_000)) return tooMany()
+
     const body = await req.json()
     const kind = body.kind === 'design' ? 'design' : 'code'
     const level: GenLevel =
@@ -14,17 +18,12 @@ export async function POST(req: Request) {
         ? body.level
         : 'beginner'
     const stack = body.stack === 'javascript' ? 'javascript' : 'typescript'
-    const userId: string | undefined = body.user_id
 
-    // Challenges this user already started (exclude them).
-    let seenIds: string[] = []
-    if (userId) {
-      const { data: seen } = await supabaseAdmin
-        .from('sessions')
-        .select('challenge_id')
-        .eq('user_id', userId)
-      seenIds = [...new Set((seen ?? []).map((s) => s.challenge_id))]
-    }
+    const { data: seen } = await supabaseAdmin
+      .from('sessions')
+      .select('challenge_id')
+      .eq('user_id', userId)
+    const seenIds = [...new Set((seen ?? []).map((s) => s.challenge_id))]
 
     let query = supabaseAdmin
       .from('challenges')
@@ -40,7 +39,6 @@ export async function POST(req: Request) {
       return Response.json(pick)
     }
 
-    // Nothing unseen → generate a fresh one (also enriches the library).
     const { data, error } = await generateChallenge({ kind, stack, level })
     if (error) return Response.json({ error: error.message }, { status: 500 })
     return Response.json(data, { status: 201 })

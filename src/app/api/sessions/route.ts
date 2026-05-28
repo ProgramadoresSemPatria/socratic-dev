@@ -1,19 +1,18 @@
+import { jsonError, requireUser, serverError } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
-export async function POST(request: Request) {
-  const { user_id, challenge_id } = await request.json()
+export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof Response) return auth
+  const userId = auth.user.id
 
-  if (!user_id || !challenge_id) {
-    return Response.json(
-      { error: 'user_id and challenge_id are required' },
-      { status: 400 },
-    )
-  }
+  const { challenge_id } = await req.json()
+  if (!challenge_id) return jsonError('challenge_id é obrigatório.', 400)
 
   const existing = await supabaseAdmin
     .from('sessions')
     .select('*')
-    .eq('user_id', user_id)
+    .eq('user_id', userId)
     .eq('challenge_id', challenge_id)
     .eq('status', 'in_progress')
     .order('started_at', { ascending: false })
@@ -24,30 +23,24 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('sessions')
-    .insert({ user_id, challenge_id })
+    .insert({ user_id: userId, challenge_id })
     .select()
     .single()
 
-  if (error) return Response.json({ error: error.message }, { status: 500 })
-
+  if (error) return serverError('sessions.POST', error)
   return Response.json(data, { status: 201 })
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const user_id = searchParams.get('user_id')
-
-  if (!user_id) {
-    return Response.json({ error: 'user_id is required' }, { status: 400 })
-  }
+export async function GET(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof Response) return auth
 
   const { data, error } = await supabaseAdmin
     .from('sessions')
     .select('*, challenges(*)')
-    .eq('user_id', user_id)
+    .eq('user_id', auth.user.id)
     .order('started_at', { ascending: false })
 
-  if (error) return Response.json({ error: error.message }, { status: 500 })
-
+  if (error) return serverError('sessions.GET', error)
   return Response.json(data)
 }

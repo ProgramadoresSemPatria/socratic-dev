@@ -1,4 +1,5 @@
 import { aiErrorResponse, askClaude, askClaudeVision } from '@/lib/ai/client'
+import { CAPS, rateLimit, requireUser, tooLarge, tooMany } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase-server'
 
 const SYSTEM = `Você é um staff engineer revisando o diagrama de ARQUITETURA (system design) de um aluno (imagem + resumo).
@@ -9,6 +10,12 @@ Responda em NO MÁXIMO 5 bullets (markdown), direto, sem floreio. NÃO redesenhe
 Cada bullet com 1 ou 2 frases curtas. Português do Brasil.`
 
 export async function POST(req: Request) {
+  const auth = await requireUser(req)
+  if (auth instanceof Response) return auth
+  const userId = auth.user.id
+
+  if (!rateLimit(`design-review:${userId}`, 20, 60_000)) return tooMany()
+
   const body = await req.json().catch(() => ({}))
   const title: string = body.title ?? ''
   const brief: string = body.brief ?? ''
@@ -16,7 +23,9 @@ export async function POST(req: Request) {
   const imageBase64: string | undefined = body.imageBase64
   const scene: string | undefined = body.scene
   const sessionId: string | undefined = body.session_id
-  const userId: string | undefined = body.user_id
+
+  if (imageBase64 && imageBase64.length > CAPS.imageBase64) return tooLarge()
+  if (summary.length > CAPS.text) return tooLarge()
 
   const userText = [
     `Desafio: ${title}`,
