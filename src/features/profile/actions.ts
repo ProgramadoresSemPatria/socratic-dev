@@ -8,7 +8,6 @@ export type Profile = {
   email: string | null
   preferred_stack: string | null
   preferred_level: string | null
-  preferred_track: string | null
   total_challenges_completed: number
   total_hints_used: number
   created_at: string
@@ -28,14 +27,12 @@ export async function updateProfile(input: {
   userId: string
   preferred_stack?: string
   preferred_level?: string
-  preferred_track?: string
 }): Promise<Profile | { error: string }> {
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .update({
       preferred_stack: input.preferred_stack,
       preferred_level: input.preferred_level,
-      preferred_track: input.preferred_track,
     })
     .eq('id', input.userId)
     .select()

@@ -26,13 +26,14 @@ export async function completeSession(args: {
   durationSeconds?: number
 }): Promise<void> {
   const status = args.status ?? 'completed'
-  const update: Record<string, unknown> = {
-    status,
-    completed_at: new Date().toISOString(),
-  }
-  if (typeof args.durationSeconds === 'number') {
-    update.duration_seconds = args.durationSeconds
-  }
+  const update =
+    typeof args.durationSeconds === 'number'
+      ? {
+          status,
+          completed_at: new Date().toISOString(),
+          duration_seconds: args.durationSeconds,
+        }
+      : { status, completed_at: new Date().toISOString() }
   await supabaseAdmin.from('sessions').update(update).eq('id', args.id)
   revalidatePath('/dashboard')
   revalidatePath('/profile')
