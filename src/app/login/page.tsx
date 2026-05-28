@@ -7,12 +7,26 @@ import { ArrowRight, Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='grid min-h-screen place-items-center bg-white'>
+          <Loader2 className='size-5 animate-spin text-[#6b6478]' />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const next = params.get('next') || '/onboarding'
+  const explicitNext = params.get('next')
 
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -32,12 +46,18 @@ export default function LoginPage() {
         const result = await signUp({ email, password })
         if ('error' in result) throw new Error(result.error)
       }
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (error) throw error
-      router.replace(next)
+      // Honor an explicit ?next (came from a gated page). Otherwise route by
+      // state: already onboarded → dashboard (no surprise challenge); not yet
+      // → onboarding to pick prefs + the first challenge.
+      const onboarded = !!(
+        data.user?.user_metadata as { preferred_level?: string } | undefined
+      )?.preferred_level
+      router.replace(explicitNext || (onboarded ? '/dashboard' : '/onboarding'))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha na autenticação')
     } finally {

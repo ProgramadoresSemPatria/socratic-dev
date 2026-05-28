@@ -3,11 +3,26 @@ import { aiErrorResponse, askClaude } from '@/lib/ai/client'
 import { solveSystem, solveTask } from '@/lib/ai/prompts/solve'
 import { hintGuide, tutorSystem, tutorTask } from '@/lib/ai/prompts/tutor'
 import type { ChatMsg } from '@/lib/ai/types'
+import {
+  CAPS,
+  jsonError,
+  rateLimit,
+  requireUser,
+  tooLarge,
+  tooMany,
+} from '@/lib/api/guard'
+import { consumeHints } from '@/lib/api/hints-server'
 
 type Mode = 'reply' | 'hint' | 'solve'
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireUser(req)
+    if (auth instanceof Response) return auth
+    const userId = auth.user.id
+
+    if (!rateLimit(`tutor:${userId}`, 40, 60_000)) return tooMany()
+
     const body = await req.json()
     const kind: ChallengeKind = body.domain === 'design' ? 'design' : 'code'
     const mode: Mode =
@@ -18,6 +33,26 @@ export async function POST(req: Request) {
     const work: string = body.code ?? ''
     const title: string = body.title ?? ''
     const briefing: string = body.briefing ?? ''
+    const sessionId: string | undefined = body.session_id
+
+    if (work.length > CAPS.text) return tooLarge()
+    if (messages.reduce((n, m) => n + (m.text?.length ?? 0), 0) > CAPS.transcript)
+      return tooLarge()
+
+    let remaining: number | undefined
+    if (mode === 'hint' || mode === 'solve') {
+      if (!sessionId) return jsonError('session_id é obrigatório.', 400)
+      const level = mode === 'solve' ? 3 : (Number(body.hintLevel) || 1)
+      const cost = mode === 'solve' ? 5 : 1
+      const r = await consumeHints(
+        userId,
+        sessionId,
+        (level as 1 | 2 | 3),
+        cost,
+      )
+      if (r === null) return jsonError('Limite de hints atingido.', 429)
+      remaining = r
+    }
 
     const system = mode === 'solve' ? solveSystem(kind) : tutorSystem(kind)
 
@@ -55,7 +90,7 @@ export async function POST(req: Request) {
       maxTokens: mode === 'solve' ? 2048 : 800,
       effort: 'medium',
     })
-    return Response.json({ text })
+    return Response.json({ text, remaining })
   } catch (e) {
     return aiErrorResponse(e)
   }

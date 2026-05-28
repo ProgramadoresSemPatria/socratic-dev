@@ -5,7 +5,9 @@ export type SocraticDraft<TWork> = {
   messages: ChatMsg[]
   hintsUsed: number
   independence: number
-  startedAt: number
+  /** Accumulated ACTIVE seconds (time the workspace was actually open),
+   * not wall-clock since first open — so closed-tab time never counts. */
+  elapsed: number
 }
 
 function draftKey(id: string): string {

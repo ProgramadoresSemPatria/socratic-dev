@@ -45,12 +45,11 @@ export async function buildSceneElements(
   edges: { from: string; to: string; label?: string }[],
 ): Promise<readonly unknown[]> {
   const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw')
-  const W = 240
-  const H = 104
-  const GAP_X = 80
-  const GAP_Y = 150
+  const W = 280
+  const H = 132
+  const GAP_X = 90
+  const GAP_Y = 180
 
-  // Group nodes into tiers and stack them top→bottom; center each tier.
   const tiers = new Map<number, typeof nodes>()
   for (const n of nodes) {
     const t = TIER[n.type ?? ''] ?? 2
@@ -87,7 +86,7 @@ export async function buildSceneElements(
         text: n.note
           ? `${st.emoji} ${n.label}\n${n.note}`
           : `${st.emoji} ${n.label}`,
-        fontSize: 16,
+        fontSize: 13,
       },
     }
   })

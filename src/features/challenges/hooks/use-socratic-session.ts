@@ -4,7 +4,6 @@ import { useUser } from '@/features/auth/hooks/use-user'
 import {
   buyHints as buyHintsAction,
   getHintBalance,
-  logHint,
 } from '@/features/hints/actions'
 import {
   SOLVE_COST,
@@ -50,8 +49,9 @@ export function useSocraticSession<TWork>(opts: {
       setMessages(draft.messages)
       setHintsUsed(draft.hintsUsed)
       setIndependence(draft.independence)
-      startedAtRef.current = draft.startedAt
-      setElapsed(Math.floor((Date.now() - draft.startedAt) / 1000))
+      const base = Number.isFinite(draft.elapsed) ? draft.elapsed : 0
+      startedAtRef.current = Date.now() - base * 1000
+      setElapsed(base)
     } else {
       setWork(initialWork)
       setMessages(initialMessages)
@@ -70,7 +70,10 @@ export function useSocraticSession<TWork>(opts: {
   }, [challenge, user])
 
   React.useEffect(() => {
-    const t = setInterval(() => setElapsed((s) => s + 1), 1000)
+    const t = setInterval(
+      () => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000)),
+      1000,
+    )
     return () => clearInterval(t)
   }, [])
 
@@ -88,7 +91,7 @@ export function useSocraticSession<TWork>(opts: {
       messages,
       hintsUsed,
       independence,
-      startedAt: startedAtRef.current,
+      elapsed: Math.floor((Date.now() - startedAtRef.current) / 1000),
     })
   }, [challenge, work, messages, hintsUsed, independence])
 
@@ -96,26 +99,24 @@ export function useSocraticSession<TWork>(opts: {
     setMessages((m) => [...m, msg])
   }
 
-  function spend(cost: number, level: 1 | 2 | 3, penalty: number) {
+  // Optimistic local decrement only. The server is the source of truth for
+  // hint balance — every tutor/solve call returns `remaining`, which the
+  // caller pipes through `syncRemaining` to overwrite this local prediction.
+  function spend(cost: number, penalty: number) {
     setHintsUsed((h) => h + cost)
     setIndependence((i) => Math.max(0, i - penalty))
-    setHintsRemaining((r) => (r === null ? r : Math.max(0, r - cost)))
-    if (sessionId && user) {
-      logHint({
-        sessionId,
-        userId: user.id,
-        hintLevel: level,
-        cost,
-      }).catch(() => {})
-    }
   }
 
   function applyHint(level: 1 | 2 | 3) {
-    spend(1, level, level * 4)
+    spend(1, level * 4)
   }
 
   function spendSolve() {
-    spend(SOLVE_COST, 3, SOLVE_INDEPENDENCE_PENALTY)
+    spend(SOLVE_COST, SOLVE_INDEPENDENCE_PENALTY)
+  }
+
+  function syncRemaining(n: number | undefined) {
+    if (typeof n === 'number') setHintsRemaining(n)
   }
 
   async function buyHints() {
@@ -154,6 +155,7 @@ export function useSocraticSession<TWork>(opts: {
     scrollRef,
     applyHint,
     spendSolve,
+    syncRemaining,
     buyHints,
     hintsRemaining,
     complete,

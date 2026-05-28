@@ -141,15 +141,14 @@ export function OnboardingFlow({ user }: { user: User }) {
         }
       | undefined
 
-    // Auto-skip if the user already onboarded.
-    if (meta?.preferred_track === 'design' && meta?.preferred_level) {
+    // Already onboarded → go straight to dashboard. No surprise challenge
+    // generation on every visit (this was annoying users on each login).
+    const onboarded =
+      !!meta?.preferred_level &&
+      (meta?.preferred_track === 'design' || !!meta?.preferred_stack)
+    if (onboarded) {
       started.current = true
-      generate('design', meta.preferred_level, 'design')
-      return
-    }
-    if (meta?.preferred_stack && meta?.preferred_level) {
-      started.current = true
-      generate(meta.preferred_stack, meta.preferred_level, 'code')
+      router.replace('/dashboard')
       return
     }
 
