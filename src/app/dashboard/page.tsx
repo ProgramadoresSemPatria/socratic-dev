@@ -17,15 +17,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import {
-  Area,
-  AreaChart,
   PolarAngleAxis,
   RadialBar,
   RadialBarChart,
   ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
 } from 'recharts'
 
 type Stats = {
@@ -51,7 +46,17 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const IRIS = 'oklch(0.55 0.24 285)'
-const MINT = 'oklch(0.7 0.14 165)'
+
+const CELL = ['bg-[#EDF0F2]', 'bg-iris/25', 'bg-iris/45', 'bg-iris/70', 'bg-iris']
+
+function activityLevel(value: number, max: number): number {
+  if (value <= 0) return 0
+  const r = value / max
+  if (r > 0.75) return 4
+  if (r > 0.5) return 3
+  if (r > 0.25) return 2
+  return 1
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -91,7 +96,6 @@ export default function DashboardPage() {
   }
 
   const score = stats?.independence_score ?? 100
-  const week = stats?.week_progress ?? []
 
   return (
     <div className='relative flex min-h-screen flex-1 flex-col bg-white'>
@@ -177,7 +181,7 @@ export default function DashboardPage() {
               </div>
 
               <div className='mb-3 grid gap-3 lg:grid-cols-[1.6fr_1fr]'>
-                <ActivityChart data={week} />
+                <ActivityHeatmap sessions={sessions} />
                 <IndependenceRing score={score} />
               </div>
 
@@ -291,65 +295,81 @@ function StatCard({
   )
 }
 
-function ActivityChart({ data }: { data: { day: string; value: number }[] }) {
+const WEEKS = 18
+const DOW_LABELS = ['', 'Seg', '', 'Qua', '', 'Sex', '']
+
+function ActivityHeatmap({ sessions }: { sessions: SessionRow[] }) {
+  const counts: Record<string, number> = {}
+  for (const s of sessions) {
+    const key = s.started_at?.slice(0, 10)
+    if (key) counts[key] = (counts[key] ?? 0) + 1
+  }
+  const max = Math.max(1, ...Object.values(counts))
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const start = new Date(today)
+  start.setDate(today.getDate() - today.getDay() - (WEEKS - 1) * 7)
+
+  const days: { key: string; count: number; future: boolean }[] = []
+  for (let i = 0; i < WEEKS * 7; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const key = d.toISOString().slice(0, 10)
+    days.push({ key, count: counts[key] ?? 0, future: d > today })
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.6 }}
-      className='rounded-2xl border border-[#DFE5E9] bg-white p-6'
+      className='flex flex-col rounded-2xl border border-[#DFE5E9] bg-white p-6'
     >
       <div className='mb-1'>
         <div className='font-mono text-[11px] tracking-wider text-[#6b6478] uppercase'>
           Sua jornada
         </div>
         <h3 className='mt-1 font-heading text-xl font-semibold tracking-tight text-[#1b1916]'>
-          Atividade na semana
+          Atividade dos últimos meses
         </h3>
       </div>
-      <div className='mt-4 h-64'>
-        <ResponsiveContainer width='100%' height='100%'>
-          <AreaChart
-            data={data}
-            margin={{ top: 10, right: 8, left: -24, bottom: 0 }}
-          >
-            <defs>
-              <linearGradient id='activity' x1='0' y1='0' x2='0' y2='1'>
-                <stop offset='0%' stopColor={IRIS} stopOpacity={0.4} />
-                <stop offset='100%' stopColor={IRIS} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <XAxis
-              dataKey='day'
-              tickLine={false}
-              axisLine={false}
-              tick={{ fontSize: 11, fill: 'oklch(0.52 0.02 285)' }}
+
+      <div className='mt-6 flex gap-2 overflow-x-auto'>
+        <div className='grid grid-rows-7 gap-1 pr-1'>
+          {DOW_LABELS.map((l, i) => (
+            <span
+              key={i}
+              className='flex h-3 items-center font-mono text-[9px] text-[#6b6478]'
+            >
+              {l}
+            </span>
+          ))}
+        </div>
+        <div className='grid grid-flow-col grid-rows-7 gap-1'>
+          {days.map((d) => (
+            <div
+              key={d.key}
+              title={`${d.key}: ${d.count} ${d.count === 1 ? 'desafio' : 'desafios'}`}
+              className={
+                d.future
+                  ? 'size-3 opacity-0'
+                  : `size-3 rounded-[2px] border border-[#DFE5E9] ${CELL[activityLevel(d.count, max)]}`
+              }
             />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tick={{ fontSize: 11, fill: 'oklch(0.52 0.02 285)' }}
-              allowDecimals={false}
-            />
-            <Tooltip
-              cursor={{ stroke: 'oklch(0 0 0 / 0.1)', strokeDasharray: '4 4' }}
-              contentStyle={{
-                background: 'oklch(1 0 0 / 0.97)',
-                border: '1px solid #DFE5E9',
-                borderRadius: 12,
-                fontSize: 12,
-              }}
-            />
-            <Area
-              type='monotone'
-              dataKey='value'
-              stroke={IRIS}
-              strokeWidth={2.5}
-              fill='url(#activity)'
-              activeDot={{ r: 5, fill: MINT }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+          ))}
+        </div>
+      </div>
+
+      <div className='mt-6 flex items-center justify-end gap-1.5 font-mono text-[10px] text-[#6b6478]'>
+        <span>Menos</span>
+        {CELL.map((c, l) => (
+          <span
+            key={l}
+            className={`size-3 rounded-[3px] border border-[#DFE5E9] ${c}`}
+          />
+        ))}
+        <span>Mais</span>
       </div>
     </motion.div>
   )

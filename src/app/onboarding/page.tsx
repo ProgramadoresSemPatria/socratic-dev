@@ -1,7 +1,6 @@
 'use client'
 
 import { Logo } from '@/components/logo'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useUser } from '@/lib/auth/use-user'
 import { supabase } from '@/lib/supabase'
@@ -129,26 +128,13 @@ export default function OnboardingPage() {
 
   React.useEffect(() => {
     if (!user) return
-    let active = true
-    ;(async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
-      if (!active || !data) return
-      const prefs = data as {
-        preferred_stack?: string | null
-        preferred_level?: string | null
-      }
-      if (prefs.preferred_stack && DB_TO_STACK[prefs.preferred_stack])
-        setStack(DB_TO_STACK[prefs.preferred_stack])
-      if (prefs.preferred_level && DB_TO_LEVEL[prefs.preferred_level])
-        setLevel(DB_TO_LEVEL[prefs.preferred_level])
-    })()
-    return () => {
-      active = false
-    }
+    const meta = user.user_metadata as
+      | { preferred_stack?: string; preferred_level?: string }
+      | undefined
+    if (meta?.preferred_stack && DB_TO_STACK[meta.preferred_stack])
+      setStack(DB_TO_STACK[meta.preferred_stack])
+    if (meta?.preferred_level && DB_TO_LEVEL[meta.preferred_level])
+      setLevel(DB_TO_LEVEL[meta.preferred_level])
   }, [user])
 
   const canNext = (step === 0 && stack) || (step === 1 && level) || step === 2
@@ -164,14 +150,9 @@ export default function OnboardingPage() {
     const dbStack = STACK_TO_DB[stack ?? 'js'] ?? 'javascript'
     const dbLevel = LEVEL_TO_DB[level ?? 'starter'] ?? 'beginner'
 
-    supabase
-      .from('profiles')
-      .update({ preferred_stack: dbStack, preferred_level: dbLevel } as never)
-      .eq('id', user.id)
-      .then(
-        () => {},
-        () => {},
-      )
+    await supabase.auth.updateUser({
+      data: { preferred_stack: dbStack, preferred_level: dbLevel },
+    })
 
     try {
       const res = await fetch('/api/generate-challenge', {
@@ -373,37 +354,37 @@ export default function OnboardingPage() {
               )}
 
               <div className='mt-7 flex items-center justify-between'>
-                <Button
-                  variant='ghost'
-                  size='lg'
+                <button
+                  type='button'
                   onClick={() => setStep((s) => Math.max(0, s - 1) as Step)}
                   className={cn(
-                    'rounded-xl text-[#6b6478] hover:text-[#1b1916]',
+                    'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-[#6b6478] transition-colors hover:bg-[#1b1916]/5 hover:text-[#1b1916]',
                     step === 0 && 'invisible',
                   )}
                 >
                   <ArrowLeft className='size-4' /> Voltar
-                </Button>
+                </button>
 
                 {step < 2 ? (
-                  <Button
-                    size='lg'
+                  <button
+                    type='button'
                     disabled={!canNext}
                     onClick={() => setStep((s) => Math.min(2, s + 1) as Step)}
-                    className='rounded-xl border-transparent bg-primary pr-3 pl-4 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40'
+                    className='group inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-[15px] font-medium tracking-tight text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40'
                   >
-                    Continuar <ArrowRight className='size-4' />
-                  </Button>
+                    Continuar
+                    <ArrowRight className='size-4 transition-transform group-hover:translate-x-0.5' />
+                  </button>
                 ) : (
-                  <Button
-                    size='lg'
+                  <button
+                    type='button'
                     onClick={start}
-                    className='group rounded-xl border-transparent bg-primary pr-4 pl-5 text-primary-foreground transition-colors hover:bg-primary/90'
+                    className='group inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-[15px] font-medium tracking-tight text-primary-foreground transition-colors hover:bg-primary/90'
                   >
                     <Sparkles className='size-4' />
                     {error ? 'Tentar de novo' : 'Gerar meu desafio'}
                     <ArrowRight className='size-4 transition-transform group-hover:translate-x-1' />
-                  </Button>
+                  </button>
                 )}
               </div>
                 </>
