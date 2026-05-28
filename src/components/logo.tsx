@@ -5,20 +5,29 @@ interface LogoProps {
   className?: string
   asLink?: boolean
   showText?: boolean
+  size?: 'default' | 'lg'
 }
 
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({
+  className,
+  size = 'default',
+}: {
+  className?: string
+  size?: 'default' | 'lg'
+}) {
+  const lg = size === 'lg'
   return (
     <div
       className={cn(
-        'grid size-8 shrink-0 place-items-center rounded-xl bg-[#dad8ea]/55 text-[#1b1916]',
+        'grid shrink-0 place-items-center rounded-xl bg-[#dad8ea]/55 text-[#1b1916]',
+        lg ? 'size-10' : 'size-8',
         className,
       )}
       aria-hidden
     >
       <svg
         viewBox='0 0 24 24'
-        className='size-5'
+        className={lg ? 'size-6' : 'size-5'}
         fill='none'
         stroke='currentColor'
         strokeWidth='1.75'
@@ -33,12 +42,23 @@ export function LogoMark({ className }: { className?: string }) {
   )
 }
 
-export function Logo({ className, asLink = true, showText = true }: LogoProps) {
+export function Logo({
+  className,
+  asLink = true,
+  showText = true,
+  size = 'default',
+}: LogoProps) {
+  const lg = size === 'lg'
   const content = (
-    <div className={cn('flex items-center gap-2.5', className)}>
-      <LogoMark />
+    <div className={cn('flex items-center', lg ? 'gap-3' : 'gap-2.5', className)}>
+      <LogoMark size={size} />
       {showText && (
-        <span className='font-heading text-[17px] font-medium tracking-tight text-[#1b1916]'>
+        <span
+          className={cn(
+            'font-heading font-medium tracking-tight text-[#1b1916]',
+            lg ? 'text-[20px]' : 'text-[17px]',
+          )}
+        >
           socratic
           <span className='text-gradient font-serif font-normal italic'>
             .dev

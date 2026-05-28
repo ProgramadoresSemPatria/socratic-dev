@@ -30,13 +30,11 @@ export function Navbar() {
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
         'fixed inset-x-0 top-0 z-50 transition-colors duration-300',
-        scrolled
-          ? 'border-b border-[#DFE5E9] bg-white/85 backdrop-blur-xl'
-          : 'border-b border-transparent bg-transparent',
+        scrolled ? 'bg-white/95 backdrop-blur-xl' : 'bg-transparent',
       )}
     >
-      <div className='container-main flex h-16 items-center justify-between'>
-        <Logo />
+      <div className='container-main flex h-[72px] items-center justify-between'>
+        <Logo size='lg' />
 
         <nav className='hidden items-center gap-1 md:flex'>
           {links.map((l) => (

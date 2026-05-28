@@ -5,6 +5,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useUser } from '@/lib/auth/use-user'
 import {
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Code2,
   Layers,
   Lightbulb,
@@ -36,6 +38,7 @@ type Stats = {
 
 type SessionRow = {
   id: string
+  challenge_id: string
   status: string
   started_at: string
   challenges: { title: string; stack: string; kind?: string } | null
@@ -473,6 +476,12 @@ function IndependenceRing({ score }: { score: number }) {
 }
 
 function RecentChallenges({ items }: { items: SessionRow[] }) {
+  const PAGE_SIZE = 6
+  const [page, setPage] = React.useState(0)
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+  const start = page * PAGE_SIZE
+  const pageItems = items.slice(start, start + PAGE_SIZE)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -481,13 +490,39 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
       transition={{ delay: 0.1, duration: 0.6 }}
       className='rounded-2xl border border-[#DFE5E9] bg-white p-6'
     >
-      <div className='mb-5'>
-        <div className='font-mono text-[11px] tracking-wider text-[#6b6478] uppercase'>
-          Histórico
+      <div className='mb-5 flex items-end justify-between gap-4'>
+        <div>
+          <div className='font-mono text-[11px] tracking-wider text-[#6b6478] uppercase'>
+            Histórico
+          </div>
+          <h3 className='mt-1 font-heading text-xl font-semibold tracking-tight text-[#1b1916]'>
+            Desafios recentes
+          </h3>
         </div>
-        <h3 className='mt-1 font-heading text-xl font-semibold tracking-tight text-[#1b1916]'>
-          Desafios recentes
-        </h3>
+        {items.length > PAGE_SIZE && (
+          <div className='flex items-center gap-2 font-mono text-[11px] text-[#6b6478]'>
+            <span className='hidden sm:inline'>
+              {start + 1}–{Math.min(start + PAGE_SIZE, items.length)} de{' '}
+              {items.length}
+            </span>
+            <button
+              type='button'
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              className='grid size-7 place-items-center rounded-lg border border-[#DFE5E9] transition-colors hover:bg-[#F7F9FA] disabled:opacity-40'
+            >
+              <ChevronLeft className='size-4' />
+            </button>
+            <button
+              type='button'
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              className='grid size-7 place-items-center rounded-lg border border-[#DFE5E9] transition-colors hover:bg-[#F7F9FA] disabled:opacity-40'
+            >
+              <ChevronRight className='size-4' />
+            </button>
+          </div>
+        )}
       </div>
 
       {items.length === 0 ? (
@@ -496,16 +531,15 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
         </p>
       ) : (
         <div className='space-y-2'>
-          {items.slice(0, 8).map((c, i) => (
-            <motion.div
-              key={c.id}
-              initial={{ opacity: 0, x: -8 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.06, duration: 0.4 }}
-              className='group rounded-xl border border-[#DFE5E9] bg-[#F7F9FA] p-3.5 transition-colors hover:bg-[#F1F4F6]'
-            >
-              <div className='flex items-start gap-3'>
+          {pageItems.map((c) => {
+            const isDesign = c.challenges?.kind === 'design'
+            const href = `${isDesign ? '/design' : '/challenge'}?id=${c.challenge_id}`
+            return (
+              <Link
+                key={c.id}
+                href={href}
+                className='group flex items-start gap-3 rounded-xl border border-[#DFE5E9] bg-[#F7F9FA] p-3.5 transition-colors hover:bg-[#F1F4F6]'
+              >
                 <div className='grid size-9 shrink-0 place-items-center rounded-lg bg-[#dad8ea]/55 text-[#1b1916]'>
                   <Code2 className='size-4' strokeWidth={1.5} />
                 </div>
@@ -520,7 +554,7 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
                   </div>
                   <div className='mt-2 flex items-center gap-3 font-mono text-[11px]'>
                     <span className='rounded-full border border-[#DFE5E9] bg-white px-2 py-0.5 text-[#6b6478]'>
-                      {c.challenges?.kind === 'design'
+                      {isDesign
                         ? 'Design System'
                         : c.challenges?.stack === 'javascript'
                           ? 'JavaScript'
@@ -529,11 +563,15 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
                     <span className='text-[#6b6478]'>
                       {STATUS_LABEL[c.status] ?? c.status}
                     </span>
+                    <span className='ml-auto inline-flex items-center gap-1 text-iris opacity-0 transition-opacity group-hover:opacity-100'>
+                      {c.status === 'completed' ? 'Abrir' : 'Retomar'}
+                      <ArrowRight className='size-3' />
+                    </span>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </Link>
+            )
+          })}
         </div>
       )}
     </motion.div>
