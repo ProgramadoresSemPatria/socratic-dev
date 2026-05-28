@@ -25,12 +25,17 @@ export function Hero() {
         <div className='grid-pattern absolute inset-0 opacity-30' />
 
         <div className='relative z-10 px-6 py-10 sm:px-10 lg:px-16 lg:py-16'>
+          <div className='mb-5 inline-flex items-center gap-2 rounded-full border border-[#1b1916]/10 bg-white/60 px-3 py-1 font-mono text-[11px] tracking-wider text-[#6b6478] uppercase backdrop-blur'>
+            <span className='size-1.5 rounded-full bg-iris' />
+            Código + Design System
+          </div>
           <h1 className='type-display mb-6 max-w-[900px] lg:mb-8'>
             A IA que nunca te dá a resposta — ela te faz chegar lá.
           </h1>
           <p className='mb-8 max-w-[644px] text-base text-[#2c2330] lg:mb-10 lg:text-[20px]'>
-            Um ambiente de código onde a IA age como um tech lead exigente: faz
-            perguntas, dá hints graduais e força você a raciocinar de verdade.
+            Resolva desafios de código no editor ou desenhe arquiteturas de
+            design system no canvas. A IA age como um tech lead exigente: faz
+            perguntas, dá hints graduais e te força a raciocinar de verdade.
           </p>
           <div className='flex flex-col gap-3 sm:flex-row'>
             <Link

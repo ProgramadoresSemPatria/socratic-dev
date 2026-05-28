@@ -11,8 +11,8 @@ import { Reveal } from './reveal'
 const features = [
   {
     icon: Code2,
-    title: 'Editor de verdade',
-    desc: 'Monaco completo — o mesmo motor do VS Code. Nada de campo de texto fake para fingir que você está codando.',
+    title: 'Editor e canvas reais',
+    desc: 'Monaco completo (o motor do VS Code) para código e um canvas Excalidraw para design system. Nada de campo fake — você trabalha como na vida real.',
   },
   {
     icon: MessagesSquare,

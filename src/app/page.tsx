@@ -3,6 +3,7 @@ import { Features } from '@/components/landing/features'
 import { FinalCta } from '@/components/landing/final-cta'
 import { Hero } from '@/components/landing/hero'
 import { HowItWorks } from '@/components/landing/how-it-works'
+import { Modes } from '@/components/landing/modes'
 import { LogoCloud } from '@/components/landing/logo-cloud'
 import { Showcase } from '@/components/landing/showcase'
 import { Statement } from '@/components/landing/statement'
@@ -25,6 +26,7 @@ export default function HomePage() {
             <Statement />
             <Showcase />
             <HowItWorks />
+            <Modes />
             <Features />
             <UseCases />
             <Stats />

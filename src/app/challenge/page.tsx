@@ -8,8 +8,6 @@ import { RunTerminal } from '@/components/challenge/run-terminal'
 import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { ChatMsg } from '@/lib/ai/types'
-import { useUser } from '@/lib/auth/use-user'
 import {
   challengeIntro,
   challengeLanguage,
@@ -18,6 +16,7 @@ import {
 } from '@/lib/challenge'
 import { runCode } from '@/lib/runner/run-code'
 import type { RunnerLanguage, RunResult } from '@/lib/runner/types'
+import { useSocraticSession } from '@/lib/session/use-socratic-session'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import {
@@ -43,50 +42,23 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ),
 })
 
-type DraftState = {
-  code: string
-  messages: ChatMsg[]
-  hintsUsed: number
-  independence: number
-  startedAt: number
-}
-
-function draftKey(id: string): string {
-  return `socratic:draft:${id}`
-}
-
-function loadDraft(id: string): DraftState | null {
-  try {
-    const raw = localStorage.getItem(draftKey(id))
-    return raw ? (JSON.parse(raw) as DraftState) : null
-  } catch {
-    return null
-  }
-}
-
-function saveDraft(id: string, state: DraftState): void {
-  try {
-    localStorage.setItem(draftKey(id), JSON.stringify(state))
-  } catch {
-  }
-}
+const POST = { method: 'POST', headers: { 'content-type': 'application/json' } }
 
 export default function ChallengePage() {
   const router = useRouter()
-  const { user, loading: authLoading } = useUser()
-
   const [challenge, setChallenge] = React.useState<Challenge | null>(null)
-  const [sessionId, setSessionId] = React.useState<string | null>(null)
-  const [code, setCode] = React.useState('')
-  const [messages, setMessages] = React.useState<ChatMsg[]>([])
-  const [input, setInput] = React.useState('')
-  const [thinking, setThinking] = React.useState(false)
-  const [independence, setIndependence] = React.useState(100)
-  const [hintsUsed, setHintsUsed] = React.useState(0)
+
+  const s = useSocraticSession<string>({
+    challenge: challenge ? { id: challenge.id } : null,
+    initialWork: challenge ? starterCode(challenge) : '',
+    initialMessages: challenge
+      ? [{ role: 'ai', text: challengeIntro(challenge) }]
+      : [],
+  })
+
   const [reviewOpen, setReviewOpen] = React.useState(false)
   const [review, setReview] = React.useState<string | null>(null)
   const [reviewing, setReviewing] = React.useState(false)
-  const [elapsed, setElapsed] = React.useState(0)
   const [running, setRunning] = React.useState(false)
   const [result, setResult] = React.useState<RunResult | null>(null)
   const [showPanel, setShowPanel] = React.useState(false)
@@ -94,19 +66,17 @@ export default function ChallengePage() {
     passed: number
     total: number
   } | null>(null)
-  const scrollRef = React.useRef<HTMLDivElement>(null)
-  const startedAtRef = React.useRef<number>(Date.now())
 
   const language: RunnerLanguage = challenge
     ? challengeLanguage(challenge.stack)
     : 'ts'
 
   React.useEffect(() => {
-    if (!authLoading && !user) router.replace('/login?next=/challenge')
-  }, [authLoading, user, router])
+    if (!s.authLoading && !s.user) router.replace('/login?next=/challenge')
+  }, [s.authLoading, s.user, router])
 
   React.useEffect(() => {
-    if (!user) return
+    if (!s.user) return
     let active = true
     ;(async () => {
       const id =
@@ -117,132 +87,65 @@ export default function ChallengePage() {
       const { data } = id
         ? await query.eq('id', id).single()
         : await query.order('created_at', { ascending: true }).limit(1).single()
-      if (!active || !data) return
-
-      const ch = data as unknown as Challenge
-      setChallenge(ch)
-
-      const draft = loadDraft(ch.id)
-      if (draft) {
-        setCode(draft.code)
-        setMessages(draft.messages)
-        setHintsUsed(draft.hintsUsed)
-        setIndependence(draft.independence)
-        startedAtRef.current = draft.startedAt
-        setElapsed(Math.floor((Date.now() - draft.startedAt) / 1000))
-      } else {
-        setCode(starterCode(ch))
-        setMessages([{ role: 'ai', text: challengeIntro(ch) }])
-        startedAtRef.current = Date.now()
-      }
-
-      const res = await fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, challenge_id: ch.id }),
-      })
-      if (active && res.ok) setSessionId((await res.json()).id)
+      if (active && data) setChallenge(data as unknown as Challenge)
     })()
     return () => {
       active = false
     }
-  }, [user])
-
-  React.useEffect(() => {
-    const t = setInterval(() => setElapsed((s) => s + 1), 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  React.useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    })
-  }, [messages, thinking])
-
-  React.useEffect(() => {
-    if (!challenge || messages.length === 0) return
-    saveDraft(challenge.id, {
-      code,
-      messages,
-      hintsUsed,
-      independence,
-      startedAt: startedAtRef.current,
-    })
-  }, [challenge, code, messages, hintsUsed, independence])
+  }, [s.user])
 
   async function sendUser() {
-    if (!input.trim() || thinking || !challenge) return
-    const text = input.trim()
-    const next: ChatMsg[] = [...messages, { role: 'user', text }]
-    setMessages(next)
-    setInput('')
-    setThinking(true)
+    if (!s.input.trim() || s.thinking || !challenge) return
+    const text = s.input.trim()
+    const next = [...s.messages, { role: 'user' as const, text }]
+    s.setMessages(next)
+    s.setInput('')
+    s.setThinking(true)
     try {
       const res = await fetch('/api/tutor', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        ...POST,
         body: JSON.stringify({
           mode: 'reply',
           messages: next,
-          code,
+          code: s.work,
           title: challenge.title,
           briefing: challenge.client_briefing,
         }),
       })
       const data = await res.json()
-      setMessages((m) => [
-        ...m,
-        {
-          role: 'ai',
-          text: data.text || data.error || 'Não consegui responder agora.',
-        },
-      ])
+      s.pushMessage({
+        role: 'ai',
+        text: data.text || data.error || 'Não consegui responder agora.',
+      })
     } finally {
-      setThinking(false)
+      s.setThinking(false)
     }
   }
 
   async function askHint(level: 1 | 2 | 3) {
-    if (thinking || !challenge) return
-    setThinking(true)
-    setHintsUsed((h) => h + 1)
-    setIndependence((i) => Math.max(0, i - level * 4))
+    if (s.thinking || !challenge) return
+    s.setThinking(true)
+    s.applyHint(level)
     try {
       const res = await fetch('/api/tutor', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        ...POST,
         body: JSON.stringify({
           mode: 'hint',
           hintLevel: level,
-          messages,
-          code,
+          messages: s.messages,
+          code: s.work,
           title: challenge.title,
           briefing: challenge.client_briefing,
         }),
       })
       const data = await res.json()
-      setMessages((m) => [
-        ...m,
-        {
-          role: 'ai',
-          text: data.text || data.error || 'Hint indisponível.',
-          hintLevel: level,
-        },
-      ])
-      if (sessionId && user) {
-        fetch('/api/hints', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            session_id: sessionId,
-            user_id: user.id,
-            hint_level: level,
-          }),
-        }).catch(() => {})
-      }
+      s.pushMessage({
+        role: 'ai',
+        text: data.text || data.error || 'Hint indisponível.',
+        hintLevel: level,
+      })
     } finally {
-      setThinking(false)
+      s.setThinking(false)
     }
   }
 
@@ -253,6 +156,7 @@ export default function ChallengePage() {
     setReview(null)
     setSubmitTests(null)
 
+    const code = s.work
     const touched =
       code.trim().length > 0 && code.trim() !== starterCode(challenge).trim()
     if (!touched) {
@@ -279,30 +183,20 @@ export default function ChallengePage() {
 
     try {
       const res = await fetch('/api/review', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        ...POST,
         body: JSON.stringify({
           code,
           title: challenge.title,
           briefing: challenge.client_briefing,
           tests_passed: passed,
           tests_total: total,
-          session_id: sessionId,
-          user_id: user?.id,
+          session_id: s.sessionId,
+          user_id: s.user?.id,
         }),
       })
       const data = await res.json()
       setReview(data.review || data.error || 'Não foi possível gerar o review.')
-      if (sessionId && solved) {
-        fetch(`/api/sessions/${sessionId}`, {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            status: 'completed',
-            duration_seconds: elapsed,
-          }),
-        }).catch(() => {})
-      }
+      if (solved) s.complete(s.elapsed)
     } finally {
       setReviewing(false)
     }
@@ -315,20 +209,20 @@ export default function ChallengePage() {
     setRunning(true)
     setResult(null)
     const r = await runCode(
-      { code, language, testsSource: challenge.tests_source },
+      { code: s.work, language, testsSource: challenge.tests_source },
       { timeoutMs: 5000 },
     )
     setResult(r)
     setRunning(false)
   }
 
-  const minutes = String(Math.floor(elapsed / 60)).padStart(2, '0')
-  const seconds = String(elapsed % 60).padStart(2, '0')
+  const minutes = String(Math.floor(s.elapsed / 60)).padStart(2, '0')
+  const seconds = String(s.elapsed % 60).padStart(2, '0')
 
-  if (authLoading || (!challenge && user)) {
+  if (s.authLoading || (!challenge && s.user)) {
     return <ChallengeSkeleton />
   }
-  if (!user || !challenge) return null
+  if (!s.user || !challenge) return null
 
   return (
     <div className='relative flex h-screen flex-col overflow-hidden'>
@@ -353,14 +247,14 @@ export default function ChallengePage() {
             <span
               className={cn(
                 'font-semibold tabular-nums',
-                independence > 70
+                s.independence > 70
                   ? 'text-mint'
-                  : independence > 40
+                  : s.independence > 40
                     ? 'text-warning-foreground'
                     : 'text-destructive-foreground',
               )}
             >
-              {independence}%
+              {s.independence}%
             </span>
           </div>
           <Button
@@ -392,7 +286,7 @@ export default function ChallengePage() {
               <Button
                 size='xs'
                 variant='ghost'
-                onClick={() => setShowPanel((s) => !s)}
+                onClick={() => setShowPanel((v) => !v)}
                 className={cn(
                   'gap-1.5 rounded-md hover:text-foreground',
                   showPanel ? 'text-foreground' : 'text-muted-foreground',
@@ -421,8 +315,8 @@ export default function ChallengePage() {
             <MonacoEditor
               height='100%'
               language={language === 'js' ? 'javascript' : 'typescript'}
-              value={code}
-              onChange={(v) => setCode(v ?? '')}
+              value={s.work}
+              onChange={(v) => s.setWork(v ?? '')}
               theme='vs-dark'
               options={{
                 fontSize: 14,
@@ -442,7 +336,7 @@ export default function ChallengePage() {
           </div>
           {showPanel &&
             (language === 'react' ? (
-              <ReactPreview code={code} onClose={() => setShowPanel(false)} />
+              <ReactPreview code={s.work} onClose={() => setShowPanel(false)} />
             ) : (
               <RunTerminal
                 result={result}
@@ -454,14 +348,14 @@ export default function ChallengePage() {
 
         <aside className='flex min-h-0 flex-col border-l border-white/[0.06] bg-card/30'>
           <ChatPanel
-            messages={messages}
-            scrollRef={scrollRef}
-            thinking={thinking}
-            input={input}
-            setInput={setInput}
+            messages={s.messages}
+            scrollRef={s.scrollRef}
+            thinking={s.thinking}
+            input={s.input}
+            setInput={s.setInput}
             sendUser={sendUser}
             askHint={askHint}
-            hintsUsed={hintsUsed}
+            hintsUsed={s.hintsUsed}
           />
         </aside>
       </div>
@@ -471,9 +365,9 @@ export default function ChallengePage() {
           <ReviewModal
             review={review}
             reviewing={reviewing}
-            independence={independence}
-            hintsUsed={hintsUsed}
-            elapsed={elapsed}
+            independence={s.independence}
+            hintsUsed={s.hintsUsed}
+            elapsed={s.elapsed}
             tests={submitTests}
             onClose={() => setReviewOpen(false)}
           />
