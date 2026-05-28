@@ -25,7 +25,7 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const next = params.get('next') || '/onboarding'
+  const explicitNext = params.get('next')
 
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -50,12 +50,18 @@ function LoginForm() {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Falha ao criar conta.')
       }
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       if (error) throw error
-      router.replace(next)
+      // Honor an explicit ?next (came from a gated page). Otherwise route by
+      // state: already onboarded → dashboard (no surprise challenge); not yet
+      // → onboarding to pick prefs + the first challenge.
+      const onboarded = !!(
+        data.user?.user_metadata as { preferred_level?: string } | undefined
+      )?.preferred_level
+      router.replace(explicitNext || (onboarded ? '/dashboard' : '/onboarding'))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha na autenticação')
     } finally {

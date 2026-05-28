@@ -41,8 +41,11 @@ export function useSocraticSession<TWork>(opts: {
       setMessages(draft.messages)
       setHintsUsed(draft.hintsUsed)
       setIndependence(draft.independence)
-      startedAtRef.current = draft.startedAt
-      setElapsed(Math.floor((Date.now() - draft.startedAt) / 1000))
+      // Resume from accumulated active time; anchor "now" so the live timer
+      // continues from there (legacy drafts without `elapsed` start at 0).
+      const base = Number.isFinite(draft.elapsed) ? draft.elapsed : 0
+      startedAtRef.current = Date.now() - base * 1000
+      setElapsed(base)
     } else {
       setWork(initialWork)
       setMessages(initialMessages)
@@ -69,7 +72,11 @@ export function useSocraticSession<TWork>(opts: {
   }, [challenge, user])
 
   React.useEffect(() => {
-    const t = setInterval(() => setElapsed((s) => s + 1), 1000)
+    // Derive from the anchor each tick (monotonic, immune to drift/throttling).
+    const t = setInterval(
+      () => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000)),
+      1000,
+    )
     return () => clearInterval(t)
   }, [])
 
@@ -87,7 +94,7 @@ export function useSocraticSession<TWork>(opts: {
       messages,
       hintsUsed,
       independence,
-      startedAt: startedAtRef.current,
+      elapsed: Math.floor((Date.now() - startedAtRef.current) / 1000),
     })
   }, [challenge, work, messages, hintsUsed, independence])
 

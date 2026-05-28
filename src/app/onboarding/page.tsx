@@ -162,15 +162,14 @@ export default function OnboardingPage() {
           preferred_level?: string
         }
       | undefined
-    // Already onboarded → skip the steps and generate straight from the profile.
-    if (meta?.preferred_track === 'design' && meta?.preferred_level) {
+    // Already onboarded → don't auto-generate a challenge; send them to the
+    // dashboard so they choose when to start one (avoids surprise generations).
+    const onboarded =
+      !!meta?.preferred_level &&
+      (meta?.preferred_track === 'design' || !!meta?.preferred_stack)
+    if (onboarded) {
       started.current = true
-      generate('design', meta.preferred_level, 'design')
-      return
-    }
-    if (meta?.preferred_stack && meta?.preferred_level) {
-      started.current = true
-      generate(meta.preferred_stack, meta.preferred_level, 'code')
+      router.replace('/dashboard')
       return
     }
     if (meta?.preferred_track) setTrack(meta.preferred_track)
