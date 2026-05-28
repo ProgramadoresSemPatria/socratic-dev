@@ -1,4 +1,4 @@
-import { ArrowRight, Code2, Palette } from 'lucide-react'
+import { ArrowRight, Code2, Network } from 'lucide-react'
 import Link from 'next/link'
 import { Reveal } from './reveal'
 
@@ -16,15 +16,15 @@ const modes = [
     ],
   },
   {
-    icon: Palette,
+    icon: Network,
     tag: 'Novo',
-    title: 'Desafios de design system',
-    desc: 'Desenhe a arquitetura num canvas — tokens, hierarquia, variantes e estados. A IA enxerga seu diagrama e interroga cada decisão.',
+    title: 'Desafios de system design',
+    desc: 'Desenhe a arquitetura num canvas — serviços, bancos, filas e o fluxo dos dados. A IA enxerga seu diagrama e interroga cada decisão.',
     cta: 'Desenhar arquitetura',
     points: [
       'Canvas Excalidraw integrado',
-      'IA com visão analisa o desenho',
-      'Do botão ao theming multi-marca',
+      'IA com visão analisa a arquitetura',
+      'Distribuição de dados, escala e trade-offs',
     ],
   },
 ]
@@ -46,7 +46,7 @@ export function Modes() {
         </Reveal>
         <Reveal delay={0.08}>
           <p className='type-body mx-auto mt-5 max-w-[600px]'>
-            Código ou arquitetura de design system — o mesmo princípio
+            Código ou system design (arquitetura) — o mesmo princípio
             socrático: a IA nunca entrega pronto, ela te leva até lá.
           </p>
         </Reveal>

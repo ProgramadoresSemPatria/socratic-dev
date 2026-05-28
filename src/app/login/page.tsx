@@ -6,9 +6,23 @@ import { ArrowRight, Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='grid min-h-screen place-items-center bg-white'>
+          <Loader2 className='size-5 animate-spin text-[#6b6478]' />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
   const next = params.get('next') || '/onboarding'
