@@ -2,6 +2,7 @@
 
 import { Navbar } from '@/components/navbar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { apiFetch } from '@/lib/api/client'
 import { useUser } from '@/lib/auth/use-user'
 import {
   ArrowRight,
@@ -78,10 +79,10 @@ export default function DashboardPage() {
       const level =
         (user?.user_metadata?.preferred_level as string | undefined) ??
         'intermediate'
-      const res = await fetch('/api/next-challenge', {
+      const res = await apiFetch('/api/next-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'design', level, user_id: user.id }),
+        body: JSON.stringify({ kind: 'design', level }),
       })
       const data = await res.json()
       if (res.ok && data?.id) router.push(`/design?id=${data.id}`)
@@ -100,8 +101,8 @@ export default function DashboardPage() {
     let active = true
     ;(async () => {
       const [s, sess] = await Promise.all([
-        fetch(`/api/stats?user_id=${user.id}`).then((r) => r.json()),
-        fetch(`/api/sessions?user_id=${user.id}`).then((r) => r.json()),
+        apiFetch('/api/stats').then((r) => r.json()),
+        apiFetch('/api/sessions').then((r) => r.json()),
       ])
       if (!active) return
       if (s && !s.error) setStats(s)

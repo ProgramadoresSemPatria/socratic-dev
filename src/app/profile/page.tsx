@@ -2,6 +2,7 @@
 
 import { Navbar } from '@/components/navbar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { apiFetch } from '@/lib/api/client'
 import { signOut, useUser } from '@/lib/auth/use-user'
 import { supabase } from '@/lib/supabase'
 import {
@@ -104,8 +105,8 @@ export default function ProfilePage() {
     let active = true
     ;(async () => {
       const [p, s] = await Promise.all([
-        fetch(`/api/profile?user_id=${user.id}`).then((r) => r.json()),
-        fetch(`/api/stats?user_id=${user.id}`).then((r) => r.json()),
+        apiFetch('/api/profile').then((r) => r.json()),
+        apiFetch('/api/stats').then((r) => r.json()),
       ])
       if (!active) return
       if (p && !p.error) setProfile(p)

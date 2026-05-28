@@ -14,6 +14,7 @@ import {
   starterCode,
   type Challenge,
 } from '@/lib/challenge'
+import { apiFetch } from '@/lib/api/client'
 import { runCode } from '@/lib/runner/run-code'
 import type { RunnerLanguage, RunResult } from '@/lib/runner/types'
 import { useSocraticSession } from '@/lib/session/use-socratic-session'
@@ -102,7 +103,7 @@ export default function ChallengePage() {
     s.setInput('')
     s.setThinking(true)
     try {
-      const res = await fetch('/api/tutor', {
+      const res = await apiFetch('/api/tutor', {
         ...POST,
         body: JSON.stringify({
           mode: 'reply',
@@ -125,13 +126,13 @@ export default function ChallengePage() {
   async function askHint(level: 1 | 2 | 3) {
     if (s.thinking || !challenge) return
     s.setThinking(true)
-    s.applyHint(level)
     try {
-      const res = await fetch('/api/tutor', {
+      const res = await apiFetch('/api/tutor', {
         ...POST,
         body: JSON.stringify({
           mode: 'hint',
           hintLevel: level,
+          session_id: s.sessionId,
           messages: s.messages,
           code: s.work,
           title: challenge.title,
@@ -139,9 +140,15 @@ export default function ChallengePage() {
         }),
       })
       const data = await res.json()
+      if (!res.ok) {
+        s.pushMessage({ role: 'ai', text: data.error || 'Hint indisponível.' })
+        return
+      }
+      s.applyHint(level)
+      s.syncRemaining(data.remaining)
       s.pushMessage({
         role: 'ai',
-        text: data.text || data.error || 'Hint indisponível.',
+        text: data.text || 'Hint indisponível.',
         hintLevel: level,
       })
     } finally {
@@ -152,19 +159,21 @@ export default function ChallengePage() {
   async function askSolve() {
     if (s.thinking || !challenge) return
     s.setThinking(true)
-    s.spendSolve()
     try {
-      const res = await fetch('/api/solve', {
+      const res = await apiFetch('/api/solve', {
         ...POST,
         body: JSON.stringify({
           kind: 'code',
+          session_id: s.sessionId,
           title: challenge.title,
           briefing: challenge.client_briefing,
           work: s.work,
         }),
       })
       const data = await res.json()
-      if (data.code) {
+      if (res.ok && data.code) {
+        s.spendSolve()
+        s.syncRemaining(data.remaining)
         s.setWork(data.code)
         s.pushMessage({
           role: 'ai',
@@ -214,7 +223,7 @@ export default function ChallengePage() {
     const solved = total === 0 || passed === total
 
     try {
-      const res = await fetch('/api/review', {
+      const res = await apiFetch('/api/review', {
         ...POST,
         body: JSON.stringify({
           code,
@@ -223,7 +232,6 @@ export default function ChallengePage() {
           tests_passed: passed,
           tests_total: total,
           session_id: s.sessionId,
-          user_id: s.user?.id,
         }),
       })
       const data = await res.json()

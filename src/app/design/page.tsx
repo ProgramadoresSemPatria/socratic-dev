@@ -14,6 +14,7 @@ import {
   summarizeElements,
 } from '@/lib/design/scene'
 import { useSocraticSession } from '@/lib/session/use-socratic-session'
+import { apiFetch } from '@/lib/api/client'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import {
@@ -85,6 +86,7 @@ export default function DesignPage() {
   function tutorBody(extra: Record<string, unknown>) {
     return JSON.stringify({
       domain: 'design',
+      session_id: s.sessionId,
       title: challenge?.title ?? '',
       briefing: challenge?.client_briefing ?? '',
       code: summarizeElements(currentElements()),
@@ -100,7 +102,7 @@ export default function DesignPage() {
     s.setInput('')
     s.setThinking(true)
     try {
-      const res = await fetch('/api/tutor', {
+      const res = await apiFetch('/api/tutor', {
         ...POST,
         body: tutorBody({ mode: 'reply', messages: next }),
       })
@@ -118,7 +120,7 @@ export default function DesignPage() {
     if (s.thinking || !challenge) return
     s.setThinking(true)
     try {
-      const res = await fetch('/api/tutor', {
+      const res = await apiFetch('/api/tutor', {
         ...POST,
         body: tutorBody({ mode: 'reply', messages: s.messages }),
       })
@@ -135,16 +137,21 @@ export default function DesignPage() {
   async function askHint(level: 1 | 2 | 3) {
     if (s.thinking || !challenge) return
     s.setThinking(true)
-    s.applyHint(level)
     try {
-      const res = await fetch('/api/tutor', {
+      const res = await apiFetch('/api/tutor', {
         ...POST,
         body: tutorBody({ mode: 'hint', hintLevel: level, messages: s.messages }),
       })
       const data = await res.json()
+      if (!res.ok) {
+        s.pushMessage({ role: 'ai', text: data.error || 'Hint indisponível.' })
+        return
+      }
+      s.applyHint(level)
+      s.syncRemaining(data.remaining)
       s.pushMessage({
         role: 'ai',
-        text: data.text || data.error || 'Hint indisponível.',
+        text: data.text || 'Hint indisponível.',
         hintLevel: level,
       })
     } finally {
@@ -155,19 +162,21 @@ export default function DesignPage() {
   async function askSolve() {
     if (s.thinking || !challenge) return
     s.setThinking(true)
-    s.spendSolve()
     try {
-      const res = await fetch('/api/solve', {
+      const res = await apiFetch('/api/solve', {
         ...POST,
         body: JSON.stringify({
           kind: 'design',
+          session_id: s.sessionId,
           title: challenge.title,
           briefing: challenge.client_briefing,
           work: summarizeElements(currentElements()),
         }),
       })
       const data = await res.json()
-      if (Array.isArray(data.nodes) && data.nodes.length > 0) {
+      if (res.ok && Array.isArray(data.nodes) && data.nodes.length > 0) {
+        s.spendSolve()
+        s.syncRemaining(data.remaining)
         const elements = await buildSceneElements(data.nodes, data.edges ?? [])
         apiRef.current?.updateScene({ elements })
         s.setWork(elements)
@@ -210,7 +219,7 @@ export default function DesignPage() {
     }
 
     try {
-      const res = await fetch('/api/design-review', {
+      const res = await apiFetch('/api/design-review', {
         ...POST,
         body: JSON.stringify({
           title: challenge.title,
@@ -219,7 +228,6 @@ export default function DesignPage() {
           imageBase64,
           scene: JSON.stringify(elements),
           session_id: s.sessionId,
-          user_id: s.user?.id,
         }),
       })
       const data = await res.json()

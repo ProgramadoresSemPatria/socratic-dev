@@ -2,6 +2,7 @@
 
 import { Logo } from '@/components/logo'
 import { Skeleton } from '@/components/ui/skeleton'
+import { apiFetch } from '@/lib/api/client'
 import { useUser } from '@/lib/auth/use-user'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
@@ -198,9 +199,9 @@ export default function OnboardingPage() {
     try {
       const body =
         trk === 'design'
-          ? { kind: 'design', level: dbLevel, user_id: user?.id }
-          : { stack: dbStack, level: dbLevel, user_id: user?.id }
-      const res = await fetch('/api/next-challenge', {
+          ? { kind: 'design', level: dbLevel }
+          : { stack: dbStack, level: dbLevel }
+      const res = await apiFetch('/api/next-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

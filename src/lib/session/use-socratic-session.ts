@@ -1,6 +1,7 @@
 'use client'
 
 import type { ChatMsg } from '@/lib/ai/types'
+import { apiFetch } from '@/lib/api/client'
 import { useUser } from '@/lib/auth/use-user'
 import { loadDraft, saveDraft } from '@/lib/draft'
 import { SOLVE_COST, SOLVE_INDEPENDENCE_PENALTY } from '@/lib/hints'
@@ -41,8 +42,6 @@ export function useSocraticSession<TWork>(opts: {
       setMessages(draft.messages)
       setHintsUsed(draft.hintsUsed)
       setIndependence(draft.independence)
-      // Resume from accumulated active time; anchor "now" so the live timer
-      // continues from there (legacy drafts without `elapsed` start at 0).
       const base = Number.isFinite(draft.elapsed) ? draft.elapsed : 0
       startedAtRef.current = Date.now() - base * 1000
       setElapsed(base)
@@ -53,16 +52,16 @@ export function useSocraticSession<TWork>(opts: {
     }
     setReady(true)
 
-    fetch('/api/sessions', {
+    apiFetch('/api/sessions', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ user_id: user.id, challenge_id: challenge.id }),
+      body: JSON.stringify({ challenge_id: challenge.id }),
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.id && setSessionId(d.id))
       .catch(() => {})
 
-    fetch(`/api/hints?user_id=${user.id}`)
+    apiFetch('/api/hints')
       .then((r) => r.json())
       .then((b) => {
         if (typeof b?.remaining === 'number') setHintsRemaining(b.remaining)
@@ -72,7 +71,6 @@ export function useSocraticSession<TWork>(opts: {
   }, [challenge, user])
 
   React.useEffect(() => {
-    // Derive from the anchor each tick (monotonic, immune to drift/throttling).
     const t = setInterval(
       () => setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000)),
       1000,
@@ -102,43 +100,31 @@ export function useSocraticSession<TWork>(opts: {
     setMessages((m) => [...m, msg])
   }
 
-  function spend(cost: number, level: 1 | 2 | 3, penalty: number) {
+  function spend(cost: number, penalty: number) {
     setHintsUsed((h) => h + cost)
     setIndependence((i) => Math.max(0, i - penalty))
-    setHintsRemaining((r) => (r === null ? r : Math.max(0, r - cost)))
-    if (sessionId && user) {
-      fetch('/api/hints', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sessionId,
-          user_id: user.id,
-          hint_level: level,
-          cost,
-        }),
-      }).catch(() => {})
-    }
   }
 
   function applyHint(level: 1 | 2 | 3) {
-    spend(1, level, level * 4)
+    spend(1, level * 4)
   }
 
   function spendSolve() {
-    spend(SOLVE_COST, 3, SOLVE_INDEPENDENCE_PENALTY)
+    spend(SOLVE_COST, SOLVE_INDEPENDENCE_PENALTY)
+  }
+
+  function syncRemaining(n: number | undefined) {
+    if (typeof n === 'number') setHintsRemaining(n)
   }
 
   async function buyHints() {
     if (!user) return
     try {
-      await fetch('/api/hints/buy', {
+      await apiFetch('/api/hints/buy', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id }),
       })
-      const b = await fetch(`/api/hints?user_id=${user.id}`).then((r) =>
-        r.json(),
-      )
+      const b = await apiFetch('/api/hints').then((r) => r.json())
       if (typeof b?.remaining === 'number') setHintsRemaining(b.remaining)
     } catch {
       // ignore
@@ -147,7 +133,7 @@ export function useSocraticSession<TWork>(opts: {
 
   function complete(durationSeconds: number) {
     if (!sessionId) return
-    fetch(`/api/sessions/${sessionId}`, {
+    apiFetch(`/api/sessions/${sessionId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -177,6 +163,7 @@ export function useSocraticSession<TWork>(opts: {
     scrollRef,
     applyHint,
     spendSolve,
+    syncRemaining,
     buyHints,
     hintsRemaining,
     complete,

@@ -1,5 +1,6 @@
 'use client'
 
+import { apiFetch } from '@/lib/api/client'
 import { useUser } from '@/lib/auth/use-user'
 import { cn } from '@/lib/utils'
 import { Lightbulb, Plus } from 'lucide-react'
@@ -8,18 +9,18 @@ import Link from 'next/link'
 import * as React from 'react'
 import { Logo } from './logo'
 
-function HintsChip({ userId }: { userId: string }) {
+function HintsChip() {
   const [remaining, setRemaining] = React.useState<number | null>(null)
   const [buying, setBuying] = React.useState(false)
 
   const refresh = React.useCallback(() => {
-    fetch(`/api/hints?user_id=${userId}`)
+    apiFetch('/api/hints')
       .then((r) => r.json())
       .then((b) => {
         if (typeof b?.remaining === 'number') setRemaining(b.remaining)
       })
       .catch(() => {})
-  }, [userId])
+  }, [])
 
   React.useEffect(() => {
     refresh()
@@ -29,10 +30,9 @@ function HintsChip({ userId }: { userId: string }) {
     if (buying) return
     setBuying(true)
     try {
-      await fetch('/api/hints/buy', {
+      await apiFetch('/api/hints/buy', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ user_id: userId }),
       })
       refresh()
     } finally {
@@ -122,7 +122,7 @@ export function Navbar() {
               >
                 Dashboard
               </Link>
-              <HintsChip userId={user.id} />
+              <HintsChip />
               <Link
                 href='/profile'
                 aria-label='Seu perfil'
