@@ -117,7 +117,6 @@ export function useSocraticSession<TWork>(opts: {
     spend(1, level, level * 4)
   }
 
-  // "Resolver pra mim" — expensive last resort.
   function spendSolve() {
     spend(SOLVE_COST, 3, SOLVE_INDEPENDENCE_PENALTY)
   }
@@ -170,6 +169,9 @@ export function useSocraticSession<TWork>(opts: {
     setWork,
     scrollRef,
     applyHint,
+    spendSolve,
+    buyHints,
+    hintsRemaining,
     complete,
   }
 }
