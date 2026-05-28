@@ -2,7 +2,7 @@
 
 import { useUser } from '@/lib/auth/use-user'
 import { cn } from '@/lib/utils'
-import { Lightbulb } from 'lucide-react'
+import { Lightbulb, Plus } from 'lucide-react'
 import { motion, useMotionValueEvent, useScroll } from 'motion/react'
 import Link from 'next/link'
 import * as React from 'react'
@@ -10,30 +10,59 @@ import { Logo } from './logo'
 
 function HintsChip({ userId }: { userId: string }) {
   const [remaining, setRemaining] = React.useState<number | null>(null)
-  React.useEffect(() => {
-    let active = true
+  const [buying, setBuying] = React.useState(false)
+
+  const refresh = React.useCallback(() => {
     fetch(`/api/hints?user_id=${userId}`)
       .then((r) => r.json())
       .then((b) => {
-        if (active && typeof b?.remaining === 'number') setRemaining(b.remaining)
+        if (typeof b?.remaining === 'number') setRemaining(b.remaining)
       })
       .catch(() => {})
-    return () => {
-      active = false
-    }
   }, [userId])
+
+  React.useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  async function buy() {
+    if (buying) return
+    setBuying(true)
+    try {
+      await fetch('/api/hints/buy', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      })
+      refresh()
+    } finally {
+      setBuying(false)
+    }
+  }
+
   if (remaining === null) return null
   return (
-    <span
-      title='Hints disponíveis'
-      className={cn(
-        'hidden h-9 items-center gap-1.5 rounded-full border border-[#DFE5E9] bg-white px-3 font-mono text-[12px] sm:inline-flex',
-        remaining <= 0 ? 'text-red-500' : 'text-[#6b6478]',
-      )}
-    >
+    <div className='hidden h-9 items-center gap-1.5 rounded-full border border-[#DFE5E9] bg-white py-0 pr-1 pl-3 sm:inline-flex'>
       <Lightbulb className='size-3.5 text-iris' />
-      {remaining}
-    </span>
+      <span
+        title='Hints disponíveis'
+        className={cn(
+          'font-mono text-[12px]',
+          remaining <= 0 ? 'text-red-500' : 'text-[#6b6478]',
+        )}
+      >
+        {remaining}
+      </span>
+      <button
+        type='button'
+        onClick={buy}
+        disabled={buying}
+        title='Comprar +10 hints'
+        className='ml-0.5 grid size-6 cursor-pointer place-items-center rounded-full text-iris transition-colors hover:bg-iris/10 disabled:opacity-50'
+      >
+        <Plus className='size-3.5' />
+      </button>
+    </div>
   )
 }
 
