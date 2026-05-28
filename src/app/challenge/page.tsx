@@ -106,8 +106,15 @@ export default function ChallengePage() {
       if (!active || !data) return
       const ch = data as unknown as Challenge
       setChallenge(ch)
-      setCode(ch.initial_code)
-      setMessages([{ role: 'ai', text: ch.intro }])
+      setCode(ch.initial_code || '')
+      setMessages([
+        {
+          role: 'ai',
+          text:
+            ch.intro ||
+            'Olá. Leia o briefing à esquerda e me diga: qual o primeiro passo pra resolver isso?',
+        },
+      ])
 
       const res = await fetch('/api/sessions', {
         method: 'POST',
@@ -642,7 +649,7 @@ function HintBtn({
 }
 
 function FormattedText({ text }: { text: string }) {
-  const parts = text.split(/(`[^`]+`)/g)
+  const parts = (text ?? '').split(/(`[^`]+`)/g)
   return (
     <>
       {parts.map((p, i) =>
