@@ -88,13 +88,13 @@ export function ReviewModal({
               size='lg'
               variant='ghost'
               onClick={onClose}
-              className='flex-1 rounded-full'
+              className='flex-1 rounded-xl'
             >
               Revisar de novo
             </Button>
             <Button
               size='lg'
-              className='flex-1 rounded-full border-transparent bg-foreground text-background hover:bg-foreground/90'
+              className='flex-1 rounded-xl border-transparent bg-primary text-primary-foreground hover:bg-primary/90'
               render={<Link href='/dashboard' />}
             >
               Ver progresso <ChevronRight className='size-4' />

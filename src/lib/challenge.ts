@@ -15,6 +15,7 @@ export type Challenge = {
 export const LEVEL_LABEL: Record<string, string> = {
   beginner: 'Iniciante',
   intermediate: 'Intermediário',
+  advanced: 'Avançado',
 }
 
 export function challengeLanguage(stack: string): RunnerLanguage {

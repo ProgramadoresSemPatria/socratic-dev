@@ -10,8 +10,17 @@ Regras:
 - client_briefing: 2 a 4 frases, com um cliente fictício e o FORMATO dos dados de entrada.
 - intro: a primeira fala do tutor socrático — uma pergunta que faça o aluno pensar. NUNCA a resposta.
 - initial_code: a(s) assinatura(s) da(s) função(ões) com "export", corpo vazio e comentários. SEM a solução. Código válido na linguagem da stack.
-- tests_source: 2 a 4 testes no formato test('nome', () => { expect(exports.NOME(args)).toBe(valor) }). Use exports.<funcao> para acessar a solução do aluno.
-- Tudo em português do Brasil, adequado ao nível pedido.`
+- tests_source: testes no formato test('nome', () => { expect(exports.NOME(args)).toBe(valor) }). Use exports.<funcao> para acessar a solução do aluno. Cubra os edge cases adequados ao nível.
+- Tudo em português do Brasil. A DIFICULDADE deve seguir estritamente o nível pedido.`
+
+const LEVEL_GUIDE: Record<string, string> = {
+  beginner:
+    'Nível INICIANTE: variáveis, condicionais, loops, arrays e strings. UMA função simples, sem algoritmos complexos. 2 a 3 testes diretos.',
+  intermediate:
+    'Nível INTERMEDIÁRIO: estruturas de dados (Map/Set), manipulação de objetos e arrays, async/await, e vários edge cases. Problema realista de produto. 3 a 4 testes, incluindo casos de borda.',
+  advanced:
+    'Nível AVANÇADO, pegada de entrevista de BIG TECH (Google, Meta, Amazon): algoritmo ou estrutura de dados NÃO-trivial, exija complexidade de tempo/espaço ótima, e cubra muitos edge cases (entrada vazia, muito grande, duplicados, limites/overflow). Inspire-se em problemas estilo LeetCode Hard / entrevista FAANG, mas embrulhados num briefing de cliente realista. 4 a 6 testes, incluindo os casos de borda difíceis. O initial_code pode ter assinatura com a complexidade esperada no comentário.',
+}
 
 function parseJson(raw: string): Record<string, unknown> {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
@@ -23,12 +32,15 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const stack = body.stack === 'javascript' ? 'javascript' : 'typescript'
-    const level = body.level === 'intermediate' ? 'intermediate' : 'beginner'
+    const level: 'beginner' | 'intermediate' | 'advanced' =
+      body.level === 'intermediate' || body.level === 'advanced'
+        ? body.level
+        : 'beginner'
 
     const raw = await askClaude({
       system: SYSTEM,
-      user: `Gere um desafio novo. stack: ${stack}. nível: ${level}.`,
-      maxTokens: 4096,
+      user: `Gere um desafio novo. stack: ${stack}. nível: ${level}.\n\n${LEVEL_GUIDE[level]}`,
+      maxTokens: level === 'advanced' ? 6000 : 4096,
       effort: 'high',
     })
 

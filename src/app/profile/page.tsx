@@ -1,11 +1,17 @@
 'use client'
 
 import { Navbar } from '@/components/navbar'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { signOut, useUser } from '@/lib/auth/use-user'
 import { LEVEL_LABEL } from '@/lib/challenge'
-import { ArrowRight, Brain, Code2, LogOut, Target, Trophy } from 'lucide-react'
+import {
+  ArrowRight,
+  Code2,
+  GaugeCircle,
+  Layers,
+  LogOut,
+  Trophy,
+} from 'lucide-react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -115,12 +121,12 @@ export default function ProfilePage() {
                       value={String(profile?.total_challenges_completed ?? 0)}
                     />
                     <Stat
-                      icon={Target}
+                      icon={GaugeCircle}
                       label='Independência'
                       value={`${stats?.independence_score ?? 100}%`}
                     />
                     <Stat
-                      icon={Brain}
+                      icon={Layers}
                       label='Hints usados'
                       value={String(profile?.total_hints_used ?? 0)}
                     />
@@ -153,30 +159,27 @@ export default function ProfilePage() {
                     </p>
                   </div>
 
-                  <div className='mt-6 flex flex-col gap-3 sm:flex-row'>
-                    <Button
-                      size='lg'
-                      className='group rounded-xl border-transparent bg-primary px-5 text-primary-foreground transition-colors hover:bg-primary/90'
-                      render={<Link href='/onboarding' />}
+                  <div className='mt-6 flex flex-col gap-3 sm:flex-row sm:items-center'>
+                    <Link
+                      href='/onboarding'
+                      className='group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-[15px] font-medium tracking-tight text-primary-foreground transition-colors hover:bg-primary/90'
                     >
                       Novo desafio
                       <ArrowRight className='size-4 transition-transform group-hover:translate-x-0.5' />
-                    </Button>
-                    <Button
-                      size='lg'
-                      variant='ghost'
-                      className='rounded-xl text-[#6b6478] hover:text-[#1b1916]'
-                      render={<Link href='/dashboard' />}
+                    </Link>
+                    <Link
+                      href='/dashboard'
+                      className='inline-flex items-center justify-center rounded-xl border border-[#1b1916]/20 px-6 py-3 text-[15px] font-medium tracking-tight text-[#1b1916] transition-colors hover:bg-[#1b1916]/5'
                     >
                       Ver dashboard
-                    </Button>
+                    </Link>
                     <button
                       type='button'
                       onClick={async () => {
                         await signOut()
                         router.push('/')
                       }}
-                      className='inline-flex items-center justify-center gap-2 rounded-xl border border-[#1b1916]/15 px-5 py-2.5 text-sm font-medium text-[#1b1916] transition-colors hover:bg-[#1b1916]/5 sm:ml-auto'
+                      className='inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-[#6b6478] transition-colors hover:bg-[#1b1916]/5 hover:text-[#1b1916] sm:ml-auto'
                     >
                       <LogOut className='size-4' />
                       Sair
@@ -224,14 +227,14 @@ function Stat({
   label,
   value,
 }: {
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
   label: string
   value: string
 }) {
   return (
     <div className='rounded-2xl border border-[#DFE5E9] bg-white p-5'>
-      <div className='mb-3 grid size-9 place-items-center rounded-xl border border-iris/20 bg-iris/10'>
-        <Icon className='size-4 text-iris' />
+      <div className='mb-3 grid size-11 place-items-center rounded-xl bg-[#dad8ea]/55 text-[#1b1916]'>
+        <Icon className='size-5' strokeWidth={1.5} />
       </div>
       <div className='font-heading text-3xl font-semibold tracking-tight tabular-nums text-[#1b1916]'>
         {value}

@@ -65,6 +65,13 @@ const levels = [
     desc: 'Padrões, arquitetura, performance. Code review mais duro.',
     intensity: 3,
   },
+  {
+    id: 'advanced',
+    name: 'Avançado',
+    tag: 'Quero nível big tech',
+    desc: 'Algoritmos, complexidade ótima, edge cases. Pegada de entrevista FAANG.',
+    intensity: 4,
+  },
 ]
 
 const STACK_TO_DB: Record<string, string> = {
@@ -83,10 +90,12 @@ const LEVEL_TO_DB: Record<string, string> = {
   starter: 'beginner',
   junior: 'beginner',
   mid: 'intermediate',
+  advanced: 'advanced',
 }
 const DB_TO_LEVEL: Record<string, string> = {
   beginner: 'starter',
   intermediate: 'mid',
+  advanced: 'advanced',
 }
 
 const stepMeta = [
@@ -308,11 +317,11 @@ export default function OnboardingPage() {
                         onClick={() => setLevel(l.id)}
                       >
                         <div className='flex items-center gap-1'>
-                          {Array.from({ length: 3 }).map((_, idx) => (
+                          {Array.from({ length: 4 }).map((_, idx) => (
                             <span
                               key={idx}
                               className={cn(
-                                'h-2 w-6 rounded-full',
+                                'h-2 w-5 rounded-full',
                                 idx < l.intensity ? 'bg-iris' : 'bg-[#DFE5E9]',
                               )}
                             />
@@ -433,9 +442,8 @@ function GeneratingChallenge() {
       className='py-2'
     >
       <div className='flex items-center gap-3'>
-        <div className='relative grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10'>
-          <span className='absolute inset-0 animate-ping rounded-2xl bg-primary/10' />
-          <Sparkles className='relative size-5 text-primary' />
+        <div className='grid size-11 shrink-0 place-items-center rounded-xl bg-[#dad8ea]/55 text-[#1b1916]'>
+          <Sparkles className='size-5' strokeWidth={1.5} />
         </div>
         <div className='min-w-0'>
           <div className='font-heading text-lg font-medium tracking-tight text-[#1b1916]'>
