@@ -44,6 +44,10 @@ const LEVEL_OPTIONS = [
   { value: 'intermediate', label: 'Intermediário' },
   { value: 'advanced', label: 'Avançado' },
 ]
+const TRACK_OPTIONS = [
+  { value: 'code', label: 'Código' },
+  { value: 'design', label: 'Design System' },
+]
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 export default function ProfilePage() {
@@ -52,6 +56,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = React.useState<Profile | null>(null)
   const [stats, setStats] = React.useState<Stats | null>(null)
   const [loaded, setLoaded] = React.useState(false)
+  const [track, setTrack] = React.useState('')
   const [stack, setStack] = React.useState('')
   const [level, setLevel] = React.useState('')
   const [saveState, setSaveState] = React.useState<SaveState>('idle')
@@ -62,16 +67,29 @@ export default function ProfilePage() {
 
   React.useEffect(() => {
     const meta = user?.user_metadata as
-      | { preferred_stack?: string; preferred_level?: string }
+      | {
+          preferred_track?: string
+          preferred_stack?: string
+          preferred_level?: string
+        }
       | undefined
+    if (meta?.preferred_track) setTrack(meta.preferred_track)
     if (meta?.preferred_stack) setStack(meta.preferred_stack)
     if (meta?.preferred_level) setLevel(meta.preferred_level)
   }, [user])
 
-  async function savePrefs(nextStack: string, nextLevel: string) {
+  async function savePrefs(
+    nextTrack: string,
+    nextStack: string,
+    nextLevel: string,
+  ) {
     setSaveState('saving')
     const { error } = await supabase.auth.updateUser({
-      data: { preferred_stack: nextStack, preferred_level: nextLevel },
+      data: {
+        preferred_track: nextTrack,
+        preferred_stack: nextStack,
+        preferred_level: nextLevel,
+      },
     })
     if (error) {
       setSaveState('error')
@@ -175,23 +193,35 @@ export default function ProfilePage() {
                     </div>
                     <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                       <SelectField
-                        label='Stack'
-                        value={stack}
-                        placeholder='Escolher stack'
-                        options={STACK_OPTIONS}
+                        label='Trilha'
+                        value={track}
+                        placeholder='Escolher trilha'
+                        options={TRACK_OPTIONS}
                         onChange={(v) => {
-                          setStack(v)
-                          savePrefs(v, level)
+                          setTrack(v)
+                          savePrefs(v, stack, level)
                         }}
                       />
+                      {track !== 'design' && (
+                        <SelectField
+                          label='Stack (código)'
+                          value={stack}
+                          placeholder='Escolher stack'
+                          options={STACK_OPTIONS}
+                          onChange={(v) => {
+                            setStack(v)
+                            savePrefs(track, v, level)
+                          }}
+                        />
+                      )}
                       <SelectField
-                        label='Nível'
+                        label='Dificuldade'
                         value={level}
                         placeholder='Escolher nível'
                         options={LEVEL_OPTIONS}
                         onChange={(v) => {
                           setLevel(v)
-                          savePrefs(stack, v)
+                          savePrefs(track, stack, v)
                         }}
                       />
                     </div>

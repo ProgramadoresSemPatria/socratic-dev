@@ -199,9 +199,9 @@ export default function OnboardingPage() {
     try {
       const body =
         trk === 'design'
-          ? { kind: 'design', level: dbLevel }
-          : { stack: dbStack, level: dbLevel }
-      const res = await fetch('/api/generate-challenge', {
+          ? { kind: 'design', level: dbLevel, user_id: user?.id }
+          : { stack: dbStack, level: dbLevel, user_id: user?.id }
+      const res = await fetch('/api/next-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

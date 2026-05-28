@@ -69,16 +69,16 @@ export default function DashboardPage() {
   const [genDesign, setGenDesign] = React.useState(false)
 
   async function startDesign() {
-    if (genDesign) return
+    if (genDesign || !user) return
     setGenDesign(true)
     try {
       const level =
         (user?.user_metadata?.preferred_level as string | undefined) ??
         'intermediate'
-      const res = await fetch('/api/generate-challenge', {
+      const res = await fetch('/api/next-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: 'design', level }),
+        body: JSON.stringify({ kind: 'design', level, user_id: user.id }),
       })
       const data = await res.json()
       if (res.ok && data?.id) router.push(`/design?id=${data.id}`)
