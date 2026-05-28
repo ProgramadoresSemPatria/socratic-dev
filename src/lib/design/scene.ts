@@ -15,8 +15,6 @@ export type ExcalidrawApi = {
   updateScene: (scene: { elements: readonly unknown[] }) => void
 }
 
-// Visual vocabulary per component type — shape + color + icon — so the
-// generated architecture reads like a real diagram, not generic boxes.
 const NODE_STYLE: Record<
   string,
   { shape: 'rectangle' | 'ellipse' | 'diamond'; emoji: string; bg: string }
@@ -32,15 +30,15 @@ const NODE_STYLE: Record<
 }
 
 export async function buildSceneElements(
-  nodes: { id: string; label: string; type?: string }[],
-  edges: { from: string; to: string }[],
+  nodes: { id: string; label: string; type?: string; note?: string }[],
+  edges: { from: string; to: string; label?: string }[],
 ): Promise<readonly unknown[]> {
   const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw')
   const COLS = 3
-  const W = 220
-  const H = 90
-  const GAP_X = 120
-  const GAP_Y = 120
+  const W = 240
+  const H = 104
+  const GAP_X = 140
+  const GAP_Y = 140
 
   const pos = new Map<string, { x: number; y: number }>()
   nodes.forEach((n, i) => {
@@ -61,7 +59,12 @@ export async function buildSceneElements(
       width: W,
       height: H,
       backgroundColor: st.bg,
-      label: { text: `${st.emoji} ${n.label}` },
+      label: {
+        text: n.note
+          ? `${st.emoji} ${n.label}\n${n.note}`
+          : `${st.emoji} ${n.label}`,
+        fontSize: 16,
+      },
     }
   })
 
@@ -90,8 +93,17 @@ export async function buildSceneElements(
       ],
       start: { id: fromId },
       end: { id: toId },
+      ...(e.label ? { label: { text: e.label } } : {}),
     })
   }
+
+  skeleton.unshift({
+    type: 'text',
+    x: 0,
+    y: -64,
+    text: 'Arquitetura sugerida — siga as setas pra entender o fluxo',
+    fontSize: 20,
+  })
 
   return convertToExcalidrawElements(skeleton as never) as readonly unknown[]
 }

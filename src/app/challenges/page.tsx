@@ -35,8 +35,6 @@ const STOP = new Set([
   'em', 'no', 'na', 'os', 'as', 'para', 'pra',
 ])
 
-// Signature of a title's concept (accent-free, stop-words removed, 4-char stems)
-// so near-duplicate titles ("Contar Vogais" / "Contagem de Vogais") collapse.
 function titleSig(t: string): string {
   return t
     .toLowerCase()
