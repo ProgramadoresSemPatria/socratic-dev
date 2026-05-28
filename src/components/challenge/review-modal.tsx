@@ -2,7 +2,14 @@
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { ChevronRight, GitPullRequestArrow, Loader2, X } from 'lucide-react'
+import {
+  CheckCircle2,
+  ChevronRight,
+  GitPullRequestArrow,
+  Loader2,
+  X,
+  XCircle,
+} from 'lucide-react'
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { FormattedText } from './formatted-text'
@@ -19,6 +26,7 @@ export function ReviewModal({
   independence,
   hintsUsed,
   elapsed,
+  tests,
   onClose,
 }: {
   review: string | null
@@ -26,6 +34,7 @@ export function ReviewModal({
   independence: number
   hintsUsed: number
   elapsed: number
+  tests: { passed: number; total: number } | null
   onClose: () => void
 }) {
   return (
@@ -70,6 +79,7 @@ export function ReviewModal({
         </div>
 
         <div className='min-h-0 flex-1 overflow-y-auto px-8 pb-6'>
+          {tests && <TestBanner passed={tests.passed} total={tests.total} />}
           {reviewing || !review ? (
             <div className='flex items-center gap-2 py-8 text-sm text-muted-foreground'>
               <Loader2 className='size-4 animate-spin' /> Gerando review…
@@ -111,6 +121,36 @@ export function ReviewModal({
         </div>
       </motion.div>
     </motion.div>
+  )
+}
+
+function TestBanner({ passed, total }: { passed: number; total: number }) {
+  if (total === 0) {
+    return (
+      <div className='mb-4 flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-[13px] text-muted-foreground'>
+        Sem testes automáticos neste desafio — o review abaixo é a avaliação.
+      </div>
+    )
+  }
+  const solved = passed === total
+  return (
+    <div
+      className={cn(
+        'mb-4 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-[13px] font-medium',
+        solved
+          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+          : 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+      )}
+    >
+      {solved ? (
+        <CheckCircle2 className='size-4 shrink-0' />
+      ) : (
+        <XCircle className='size-4 shrink-0' />
+      )}
+      {solved
+        ? `Passou em todos os testes (${passed}/${total}) — desafio resolvido.`
+        : `Passou ${passed}/${total} testes — ainda não resolvido. Use o review pra fechar o que falta.`}
+    </div>
   )
 }
 

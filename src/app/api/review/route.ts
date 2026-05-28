@@ -15,14 +15,22 @@ export async function POST(req: Request) {
   const briefing: string = body.briefing ?? ''
   const sessionId: string | undefined = body.session_id
   const userId: string | undefined = body.user_id
+  const testsPassed: number = body.tests_passed ?? 0
+  const testsTotal: number = body.tests_total ?? 0
 
   if (!code) {
     return Response.json({ error: 'code é obrigatório' }, { status: 400 })
   }
 
+  const testLine =
+    testsTotal > 0
+      ? `Testes automáticos: passou ${testsPassed}/${testsTotal}.${testsPassed < testsTotal ? ' O código AINDA NÃO resolve o desafio — foque no que está falhando.' : ' Está resolvido — agora questione as escolhas.'}`
+      : 'Sem testes automáticos.'
+
   const user = [
     `Desafio: ${title}`,
     `Briefing do cliente: ${briefing}`,
+    testLine,
     '',
     'Código submetido:',
     '```',

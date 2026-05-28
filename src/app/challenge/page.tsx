@@ -43,6 +43,34 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   ),
 })
 
+type DraftState = {
+  code: string
+  messages: ChatMsg[]
+  hintsUsed: number
+  independence: number
+  startedAt: number
+}
+
+function draftKey(id: string): string {
+  return `socratic:draft:${id}`
+}
+
+function loadDraft(id: string): DraftState | null {
+  try {
+    const raw = localStorage.getItem(draftKey(id))
+    return raw ? (JSON.parse(raw) as DraftState) : null
+  } catch {
+    return null
+  }
+}
+
+function saveDraft(id: string, state: DraftState): void {
+  try {
+    localStorage.setItem(draftKey(id), JSON.stringify(state))
+  } catch {
+  }
+}
+
 export default function ChallengePage() {
   const router = useRouter()
   const { user, loading: authLoading } = useUser()
@@ -62,7 +90,12 @@ export default function ChallengePage() {
   const [running, setRunning] = React.useState(false)
   const [result, setResult] = React.useState<RunResult | null>(null)
   const [showPanel, setShowPanel] = React.useState(false)
+  const [submitTests, setSubmitTests] = React.useState<{
+    passed: number
+    total: number
+  } | null>(null)
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const startedAtRef = React.useRef<number>(Date.now())
 
   const language: RunnerLanguage = challenge
     ? challengeLanguage(challenge.stack)
@@ -88,8 +121,20 @@ export default function ChallengePage() {
 
       const ch = data as unknown as Challenge
       setChallenge(ch)
-      setCode(starterCode(ch))
-      setMessages([{ role: 'ai', text: challengeIntro(ch) }])
+
+      const draft = loadDraft(ch.id)
+      if (draft) {
+        setCode(draft.code)
+        setMessages(draft.messages)
+        setHintsUsed(draft.hintsUsed)
+        setIndependence(draft.independence)
+        startedAtRef.current = draft.startedAt
+        setElapsed(Math.floor((Date.now() - draft.startedAt) / 1000))
+      } else {
+        setCode(starterCode(ch))
+        setMessages([{ role: 'ai', text: challengeIntro(ch) }])
+        startedAtRef.current = Date.now()
+      }
 
       const res = await fetch('/api/sessions', {
         method: 'POST',
@@ -114,6 +159,17 @@ export default function ChallengePage() {
       behavior: 'smooth',
     })
   }, [messages, thinking])
+
+  React.useEffect(() => {
+    if (!challenge || messages.length === 0) return
+    saveDraft(challenge.id, {
+      code,
+      messages,
+      hintsUsed,
+      independence,
+      startedAt: startedAtRef.current,
+    })
+  }, [challenge, code, messages, hintsUsed, independence])
 
   async function sendUser() {
     if (!input.trim() || thinking || !challenge) return
@@ -195,6 +251,22 @@ export default function ChallengePage() {
     setReviewOpen(true)
     setReviewing(true)
     setReview(null)
+    setSubmitTests(null)
+
+    let passed = 0
+    let total = 0
+    if (challenge.tests_source && language !== 'react') {
+      const r = await runCode(
+        { code, language, testsSource: challenge.tests_source },
+        { timeoutMs: 5000 },
+      )
+      total = r.tests.length
+      passed = r.tests.filter((t) => t.passed).length
+      setResult(r)
+    }
+    setSubmitTests({ passed, total })
+    const solved = total === 0 || passed === total
+
     try {
       const res = await fetch('/api/review', {
         method: 'POST',
@@ -203,13 +275,15 @@ export default function ChallengePage() {
           code,
           title: challenge.title,
           briefing: challenge.client_briefing,
+          tests_passed: passed,
+          tests_total: total,
           session_id: sessionId,
           user_id: user?.id,
         }),
       })
       const data = await res.json()
       setReview(data.review || data.error || 'Não foi possível gerar o review.')
-      if (sessionId) {
+      if (sessionId && solved) {
         fetch(`/api/sessions/${sessionId}`, {
           method: 'PATCH',
           headers: { 'content-type': 'application/json' },
@@ -390,6 +464,7 @@ export default function ChallengePage() {
             independence={independence}
             hintsUsed={hintsUsed}
             elapsed={elapsed}
+            tests={submitTests}
             onClose={() => setReviewOpen(false)}
           />
         )}
