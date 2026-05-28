@@ -77,9 +77,9 @@ export default function ChallengePage() {
   const [showPanel, setShowPanel] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
 
-  const language = (challenge?.stack === 'javascript'
-    ? 'js'
-    : 'ts') as RunnerLanguage
+  const language = (
+    challenge?.stack === 'javascript' ? 'js' : 'ts'
+  ) as RunnerLanguage
 
   // Auth guard
   React.useEffect(() => {

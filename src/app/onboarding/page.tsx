@@ -2,10 +2,13 @@
 
 import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
+import { useUser } from '@/lib/auth/use-user'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
-import { ArrowLeft, ArrowRight, Check, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import * as React from 'react'
 
 const stacks = [
@@ -71,6 +74,43 @@ export default function OnboardingPage() {
   const [level, setLevel] = React.useState<string | null>(null)
 
   const canNext = (step === 0 && stack) || (step === 1 && level) || step === 2
+
+  const router = useRouter()
+  const { user } = useUser()
+  const [starting, setStarting] = React.useState(false)
+
+  async function start() {
+    if (starting) return
+    if (!user) {
+      router.push('/login?next=/onboarding')
+      return
+    }
+    setStarting(true)
+    const dbStack = stack === 'js' ? 'javascript' : 'typescript'
+    const dbLevel = level === 'mid' ? 'intermediate' : 'beginner'
+
+    const byBoth = await supabase
+      .from('challenges')
+      .select('id')
+      .eq('stack', dbStack)
+      .eq('level', dbLevel)
+      .limit(1)
+    let id = byBoth.data?.[0]?.id as string | undefined
+
+    if (!id) {
+      const byStack = await supabase
+        .from('challenges')
+        .select('id')
+        .eq('stack', dbStack)
+        .limit(1)
+      id = byStack.data?.[0]?.id as string | undefined
+    }
+    if (!id) {
+      const any = await supabase.from('challenges').select('id').limit(1)
+      id = any.data?.[0]?.id as string | undefined
+    }
+    router.push(id ? `/challenge?id=${id}` : '/challenge')
+  }
 
   return (
     <div className='relative flex min-h-screen flex-1 flex-col bg-white'>
@@ -235,10 +275,15 @@ export default function OnboardingPage() {
                   </Button>
                   <Button
                     size='xl'
-                    className='glow-iris group absolute left-1/2 h-12 -translate-x-1/2 rounded-full border-transparent bg-primary pr-4 pl-5 text-[15px] text-primary-foreground hover:bg-primary/90'
-                    render={<Link href='/challenge' />}
+                    onClick={start}
+                    disabled={starting}
+                    className='glow-iris group absolute left-1/2 h-12 -translate-x-1/2 rounded-full border-transparent bg-primary pr-4 pl-5 text-[15px] text-primary-foreground hover:bg-primary/90 disabled:opacity-60'
                   >
-                    <Sparkles className='size-4' />
+                    {starting ? (
+                      <Loader2 className='size-4 animate-spin' />
+                    ) : (
+                      <Sparkles className='size-4' />
+                    )}
                     Gerar meu desafio
                     <ArrowRight className='size-4 transition-transform group-hover:translate-x-1' />
                   </Button>

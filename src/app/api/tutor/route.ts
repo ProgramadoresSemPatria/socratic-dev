@@ -17,7 +17,9 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const mode: 'reply' | 'hint' = body.mode === 'hint' ? 'hint' : 'reply'
-    const messages: ChatMsg[] = Array.isArray(body.messages) ? body.messages : []
+    const messages: ChatMsg[] = Array.isArray(body.messages)
+      ? body.messages
+      : []
     const code: string = body.code ?? ''
     const title: string = body.title ?? ''
     const briefing: string = body.briefing ?? ''
