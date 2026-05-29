@@ -129,12 +129,6 @@ export function Navbar() {
           ) : (
             <>
               <Link
-                href='/login'
-                className='hidden rounded-md px-3 py-2 text-sm font-medium text-[#6b6478] transition-colors hover:text-[#1b1916] sm:inline-flex'
-              >
-                Entrar
-              </Link>
-              <Link
                 href='/onboarding'
                 className='inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium tracking-tight text-primary-foreground transition-colors hover:bg-primary/90'
               >
