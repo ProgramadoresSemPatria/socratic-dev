@@ -41,7 +41,7 @@ export function StatementCanvas() {
       <ComparisonCard
         eyebrow={t.shortcut.eyebrow}
         title={t.shortcut.title}
-        tone='sand'
+        tone='stone'
         steps={t.shortcut.steps}
         footer={t.shortcut.footer}
       />

@@ -51,7 +51,7 @@ export function Hero() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className='from-pastel-greige via-pastel-mist/70 to-pastel-lavender/60 relative flex min-h-[520px] items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br lg:min-h-[600px]'
+        className='from-pastel-greige via-pastel-mist/70 to-pastel-lavender/60 relative flex min-h-[400px] items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br lg:min-h-[460px]'
       >
         <div className='pointer-events-none absolute inset-0 opacity-45 mix-blend-multiply'>
           <Halftone
@@ -64,12 +64,12 @@ export function Hero() {
           />
         </div>
 
-        <div className='relative z-10 mx-auto max-w-[1000px] px-6 py-16 text-center sm:px-10 lg:px-16 lg:py-24'>
-          <p className='eyebrow mb-6'>{t.eyebrow}</p>
-          <h1 className='type-display mx-auto mb-6 max-w-[900px] lg:mb-8'>
+        <div className='relative z-10 mx-auto max-w-[1000px] px-6 py-12 text-center sm:px-10 lg:px-16 lg:py-16'>
+          <p className='eyebrow mb-5'>{t.eyebrow}</p>
+          <h1 className='font-heading text-ink mx-auto mb-5 max-w-[860px] text-[38px] leading-[1.04] font-light tracking-[-0.04em] sm:text-[56px] lg:mb-7 lg:text-[72px] lg:leading-[1.02]'>
             {t.title}
           </h1>
-          <p className='type-body mx-auto mb-9 max-w-[644px] lg:mb-11'>
+          <p className='type-body mx-auto mb-8 max-w-[644px] lg:mb-10'>
             {t.sub}
           </p>
           <div className='flex flex-col justify-center gap-3 sm:flex-row'>

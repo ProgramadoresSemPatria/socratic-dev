@@ -77,101 +77,86 @@ const copy = {
 
 type Painter = (ctx: CanvasRenderingContext2D, w: number, h: number) => void
 
-function rr(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  ctx.beginPath()
-  ctx.roundRect(x, y, w, h, r)
-  ctx.fill()
+function glyph(text: string, widthFactor: number): Painter {
+  return (ctx, w, h) => {
+    const size = Math.min(h * 0.85, w / widthFactor)
+    ctx.font = `700 ${size}px ui-monospace, Menlo, Consolas, monospace`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, w / 2, h / 2)
+  }
 }
 
-function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
-  ctx.beginPath()
-  ctx.arc(x, y, r, 0, Math.PI * 2)
-  ctx.fill()
-}
+const paintApi = glyph('{ }', 2)
+const paintUi = glyph('</>', 2)
+const paintAlgo = glyph('O(n)', 2.7)
 
-const paintApi: Painter = (ctx) => {
-  rr(ctx, 70, 50, 230, 190, 18)
-  ctx.lineWidth = 14
+const paintDebug: Painter = (ctx, w, h) => {
+  const s = Math.min(w, h * 2.4) / 480
+  ctx.translate(w / 2, h / 2)
+  ctx.scale(s, s)
+  ctx.lineWidth = 16
   ctx.beginPath()
-  ctx.moveTo(300, 145)
-  ctx.lineTo(400, 145)
-  ctx.moveTo(452, 145)
-  ctx.lineTo(520, 145)
+  ctx.arc(0, 0, 150, 0, Math.PI * 2)
   ctx.stroke()
-  dot(ctx, 426, 145, 26)
-  dot(ctx, 566, 145, 46)
-  ctx.globalAlpha = 0.6
-  rr(ctx, 380, 240, 110, 60, 12)
-  rr(ctx, 520, 240, 110, 60, 12)
-}
-
-const paintUi: Painter = (ctx) => {
-  rr(ctx, 70, 60, 230, 160, 16)
-  rr(ctx, 250, 150, 250, 180, 16)
-  ctx.globalAlpha = 0.6
-  rr(ctx, 540, 80, 120, 120, 14)
-}
-
-const paintAlgo: Painter = (ctx) => {
+  ctx.fillRect(-8, -212, 16, 64)
+  ctx.fillRect(-8, 148, 16, 64)
+  ctx.fillRect(-212, -8, 64, 16)
+  ctx.fillRect(148, -8, 64, 16)
   ctx.beginPath()
-  ctx.moveTo(70, 320)
-  ctx.bezierCurveTo(250, 315, 430, 190, 620, 55)
-  ctx.lineTo(620, 320)
-  ctx.closePath()
+  ctx.ellipse(0, 14, 50, 68, 0, 0, Math.PI * 2)
   ctx.fill()
-  ctx.fillRect(70, 322, 550, 10)
-}
-
-const paintDebug: Painter = (ctx) => {
-  ctx.lineWidth = 24
   ctx.beginPath()
-  ctx.arc(450, 185, 105, 0, Math.PI * 2)
-  ctx.stroke()
-  ctx.lineWidth = 18
+  ctx.arc(0, -70, 30, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.lineWidth = 12
   ctx.beginPath()
-  ctx.arc(450, 185, 48, 0, Math.PI * 2)
-  ctx.stroke()
-  dot(ctx, 450, 185, 18)
-  ctx.fillRect(438, 40, 24, 56)
-  ctx.fillRect(438, 274, 24, 56)
-  ctx.fillRect(305, 173, 56, 24)
-  ctx.fillRect(539, 173, 56, 24)
-  ctx.lineWidth = 20
-  ctx.globalAlpha = 0.6
-  ctx.beginPath()
-  ctx.moveTo(80, 70)
-  ctx.lineTo(185, 145)
-  ctx.lineTo(120, 230)
-  ctx.lineTo(235, 300)
+  ctx.moveTo(-44, -26)
+  ctx.lineTo(-96, -52)
+  ctx.moveTo(-50, 14)
+  ctx.lineTo(-104, 14)
+  ctx.moveTo(-44, 54)
+  ctx.lineTo(-96, 84)
+  ctx.moveTo(44, -26)
+  ctx.lineTo(96, -52)
+  ctx.moveTo(50, 14)
+  ctx.lineTo(104, 14)
+  ctx.moveTo(44, 54)
+  ctx.lineTo(96, 84)
+  ctx.moveTo(-14, -94)
+  ctx.lineTo(-32, -124)
+  ctx.moveTo(14, -94)
+  ctx.lineTo(32, -124)
   ctx.stroke()
 }
 
-const paintDesign: Painter = (ctx) => {
-  rr(ctx, 80, 62, 135, 72, 12)
-  rr(ctx, 80, 240, 135, 72, 12)
-  rr(ctx, 300, 150, 135, 72, 12)
+const paintDesign: Painter = (ctx, w, h) => {
+  const s = Math.min(w, h * 2.6) / 560
+  ctx.translate(w / 2, h / 2)
+  ctx.scale(s, s)
+  const box = (x: number, y: number) => {
+    ctx.beginPath()
+    ctx.roundRect(x, y, 120, 70, 12)
+    ctx.fill()
+  }
+  box(-270, -110)
+  box(-270, 40)
+  box(-60, -35)
   ctx.beginPath()
-  ctx.ellipse(565, 130, 55, 22, 0, 0, Math.PI * 2)
+  ctx.ellipse(200, -55, 55, 22, 0, 0, Math.PI * 2)
   ctx.fill()
-  ctx.fillRect(510, 130, 110, 110)
+  ctx.fillRect(145, -55, 110, 110)
   ctx.beginPath()
-  ctx.ellipse(565, 240, 55, 22, 0, 0, Math.PI * 2)
+  ctx.ellipse(200, 55, 55, 22, 0, 0, Math.PI * 2)
   ctx.fill()
-  ctx.lineWidth = 14
+  ctx.lineWidth = 12
   ctx.beginPath()
-  ctx.moveTo(215, 100)
-  ctx.lineTo(300, 175)
-  ctx.moveTo(215, 275)
-  ctx.lineTo(300, 200)
-  ctx.moveTo(435, 186)
-  ctx.lineTo(505, 186)
+  ctx.moveTo(-150, -75)
+  ctx.lineTo(-60, -10)
+  ctx.moveTo(-150, 75)
+  ctx.lineTo(-60, 10)
+  ctx.moveTo(60, 0)
+  ctx.lineTo(145, 0)
   ctx.stroke()
 }
 
@@ -196,14 +181,14 @@ const arenas: Arena[] = [
 function Scene({ paint, active }: { paint: Painter; active: boolean }) {
   return (
     <div
-      className={`pointer-events-none absolute -top-8 -left-10 h-[380px] w-[700px] mix-blend-multiply transition-opacity duration-500 ease-out ${active ? 'opacity-80' : 'opacity-[0.15]'}`}
+      className={`pointer-events-none absolute inset-x-5 top-4 h-[175px] mix-blend-multiply transition-opacity duration-500 ease-out ${active ? 'opacity-85' : 'opacity-[0.18]'}`}
     >
       <Halftone
         draw={paint}
         active={active}
         interactive
-        spacing={9}
-        flow={14}
+        spacing={8}
+        flow={12}
         className='absolute inset-0'
       />
     </div>
@@ -328,7 +313,13 @@ export function UseCases() {
           const at = t.arenas[arena.key]
           const body = (
             <>
-              <Scene paint={arena.paint} active={false} />
+              <div className='pointer-events-none relative mb-4 h-[110px] opacity-40 mix-blend-multiply'>
+                <Halftone
+                  draw={arena.paint}
+                  spacing={7}
+                  className='absolute inset-0'
+                />
+              </div>
               <div className='relative flex flex-col gap-3'>
                 <p className='eyebrow text-ink/60'>{at.eyebrow}</p>
                 <h3 className='text-ink font-heading text-[24px] leading-[1.1] font-light'>
