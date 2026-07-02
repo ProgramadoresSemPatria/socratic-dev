@@ -146,7 +146,7 @@ const arenas: Arena[] = [
 function Scene({ paint, active }: { paint: Painter; active: boolean }) {
   return (
     <div
-      className={`pointer-events-none absolute mix-blend-multiply transition-all duration-500 ease-out dark:mix-blend-screen ${active ? 'inset-x-5 top-2 bottom-[262px] opacity-85' : 'inset-0 opacity-[0.22]'}`}
+      className={`pointer-events-none absolute top-4 left-1/2 h-[178px] w-[560px] max-w-none -translate-x-1/2 mix-blend-multiply transition-opacity duration-500 ease-out dark:mix-blend-screen ${active ? 'opacity-85' : 'opacity-[0.22]'}`}
     >
       <Halftone
         draw={paint}

@@ -265,19 +265,30 @@ export function Halftone({
     if (!canvas) return
     let debounce = 0
 
-    const measure = () => {
+    // Cheap: track the parent size every tick so the art follows layout
+    // transitions smoothly (the dots sample the mask with normalized
+    // coordinates, so a briefly stale mask just stretches).
+    const resize = (): boolean => {
       const parent = canvas.parentElement
-      if (!parent) return
+      if (!parent) return false
       const w = parent.clientWidth
       const h = parent.clientHeight
-      if (!w || !h) return
-      const dpr = Math.min(2, window.devicePixelRatio || 1)
-      sizeRef.current = { w, h, dpr }
-      canvas.width = w * dpr
-      canvas.height = h * dpr
-      canvas.style.width = `${w}px`
-      canvas.style.height = `${h}px`
+      if (!w || !h) return false
+      if (sizeRef.current.w !== w || sizeRef.current.h !== h) {
+        const dpr = Math.min(2, window.devicePixelRatio || 1)
+        sizeRef.current = { w, h, dpr }
+        canvas.width = w * dpr
+        canvas.height = h * dpr
+        canvas.style.width = `${w}px`
+        canvas.style.height = `${h}px`
+      }
+      return true
+    }
 
+    // Expensive (offscreen draw + getImageData): debounced after resizes.
+    const rebuildMask = () => {
+      const { w, h } = sizeRef.current
+      if (!w || !h) return
       const scale = 0.5
       const off = (offRef.current ??= document.createElement('canvas'))
       off.width = Math.max(1, Math.floor(w * scale))
@@ -295,10 +306,16 @@ export function Halftone({
       render(performance.now())
     }
 
-    measure()
+    if (resize()) rebuildMask()
     const ro = new ResizeObserver(() => {
+      if (!resize()) return
+      if (!maskRef.current) {
+        rebuildMask()
+        return
+      }
+      render(performance.now())
       window.clearTimeout(debounce)
-      debounce = window.setTimeout(measure, 140)
+      debounce = window.setTimeout(rebuildMask, 140)
     })
     ro.observe(canvas.parentElement!)
     return () => {
