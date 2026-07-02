@@ -385,11 +385,26 @@ function Celebration({
             <XCircle className='size-12' strokeWidth={1.5} />
           )}
         </motion.div>
+        {passed && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className='mb-4 text-center'
+          >
+            <span className='font-heading text-ink text-[88px] leading-none font-light tracking-[-0.04em] tabular-nums'>
+              {independence}
+            </span>
+            <span className='text-muted-foreground ml-1.5 font-mono text-base'>
+              /100
+            </span>
+          </motion.div>
+        )}
         <motion.h2
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.5 }}
-          className='font-heading max-w-[20ch] text-center text-3xl font-light tracking-tight text-ink sm:text-4xl'
+          transition={{ delay: 0.45, duration: 0.5 }}
+          className='font-heading text-ink max-w-[20ch] text-center text-3xl font-light tracking-tight sm:text-4xl'
         >
           <span className='font-serif italic'>
             {celebrationLine(t, passed, independence)}

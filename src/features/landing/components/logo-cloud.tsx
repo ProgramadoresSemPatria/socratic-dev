@@ -55,8 +55,8 @@ export function LogoCloud() {
     <section className='py-8'>
       <p className='eyebrow mb-6 text-center'>{t.label}</p>
       <div className='relative overflow-hidden'>
-        <div className='from-background pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r to-transparent' />
-        <div className='from-background pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l to-transparent' />
+        <div className='from-card pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r to-transparent' />
+        <div className='from-card pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l to-transparent' />
         <div className='animate-marquee flex w-max hover:[animation-play-state:paused] motion-reduce:[animation-play-state:paused]'>
           <Row topics={t.topics} />
           <Row topics={t.topics} />
