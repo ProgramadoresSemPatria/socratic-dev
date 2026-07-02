@@ -97,6 +97,8 @@ export function Halftone({
   const rafRef = React.useRef(0)
   const reducedRef = React.useRef(false)
   const colorRef = React.useRef(color ?? '#1b1916')
+  const visibleRef = React.useRef(true)
+  const offRef = React.useRef<HTMLCanvasElement | null>(null)
   const mouseRef = React.useRef({ tx: -9999, ty: -9999, x: -9999, y: -9999 })
 
   const sample = React.useCallback((sx: number, sy: number) => {
@@ -193,20 +195,30 @@ export function Halftone({
 
   const loop = React.useCallback(
     (t: number) => {
+      if (
+        !visibleRef.current ||
+        reducedRef.current ||
+        !(activeRef.current || ambientRef.current)
+      ) {
+        return
+      }
       const ambientOnly = !activeRef.current && ambientRef.current
       if (!ambientOnly || t - lastFrameRef.current >= 40) {
         render(t)
         lastFrameRef.current = t
       }
-      if (
-        (activeRef.current || ambientRef.current) &&
-        !reducedRef.current
-      ) {
-        rafRef.current = requestAnimationFrame(loop)
-      }
+      rafRef.current = requestAnimationFrame(loop)
     },
     [render],
   )
+
+  // Cancel-then-schedule so an instance never runs two loops at once.
+  const startLoop = React.useCallback(() => {
+    cancelAnimationFrame(rafRef.current)
+    if (!visibleRef.current || reducedRef.current) return
+    if (!(activeRef.current || ambientRef.current)) return
+    rafRef.current = requestAnimationFrame(loop)
+  }, [loop])
 
   React.useEffect(() => {
     reducedRef.current = window.matchMedia(
@@ -251,6 +263,7 @@ export function Halftone({
   React.useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+    let debounce = 0
 
     const measure = () => {
       const parent = canvas.parentElement
@@ -266,12 +279,12 @@ export function Halftone({
       canvas.style.height = `${h}px`
 
       const scale = 0.5
-      const off = document.createElement('canvas')
+      const off = (offRef.current ??= document.createElement('canvas'))
       off.width = Math.max(1, Math.floor(w * scale))
       off.height = Math.max(1, Math.floor(h * scale))
       const octx = off.getContext('2d')
       if (!octx) return
-      octx.scale(scale, scale)
+      octx.setTransform(scale, 0, 0, scale, 0, 0)
       draw(octx, w, h)
       maskRef.current = {
         data: octx.getImageData(0, 0, off.width, off.height).data,
@@ -283,10 +296,31 @@ export function Halftone({
     }
 
     measure()
-    const ro = new ResizeObserver(measure)
+    const ro = new ResizeObserver(() => {
+      window.clearTimeout(debounce)
+      debounce = window.setTimeout(measure, 140)
+    })
     ro.observe(canvas.parentElement!)
-    return () => ro.disconnect()
+    return () => {
+      window.clearTimeout(debounce)
+      ro.disconnect()
+    }
   }, [draw, render])
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        visibleRef.current = entry.isIntersecting
+        if (entry.isIntersecting) startLoop()
+        else cancelAnimationFrame(rafRef.current)
+      },
+      { rootMargin: '80px' },
+    )
+    io.observe(canvas)
+    return () => io.disconnect()
+  }, [startLoop])
 
   React.useEffect(() => {
     activeRef.current = active
@@ -294,12 +328,12 @@ export function Halftone({
     cancelAnimationFrame(rafRef.current)
     if (active) activeSinceRef.current = performance.now()
     if ((active || ambient) && !reducedRef.current) {
-      rafRef.current = requestAnimationFrame(loop)
+      startLoop()
     } else {
       render(performance.now())
     }
     return () => cancelAnimationFrame(rafRef.current)
-  }, [active, ambient, loop, render])
+  }, [active, ambient, startLoop, render])
 
   return <canvas ref={canvasRef} aria-hidden className={className} />
 }
