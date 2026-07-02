@@ -126,6 +126,41 @@ function sanitizeTeach(
   return teach.flow || teach.components || teach.questions ? teach : undefined
 }
 
+type CodeTeach = {
+  flow?: string
+  decisions?: { what: string; why: string }[]
+  questions?: string[]
+}
+
+function sanitizeCodeTeach(raw: unknown): CodeTeach | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const o = raw as Record<string, unknown>
+  const teach: CodeTeach = {}
+  if (typeof o.flow === 'string' && o.flow.trim())
+    teach.flow = o.flow.trim().slice(0, 900)
+  if (Array.isArray(o.decisions)) {
+    const ds: { what: string; why: string }[] = []
+    for (const item of o.decisions) {
+      if (ds.length >= 8) break
+      if (!item || typeof item !== 'object') continue
+      const c = item as Record<string, unknown>
+      const what = typeof c.what === 'string' ? c.what.trim().slice(0, 60) : ''
+      const why = typeof c.why === 'string' ? c.why.trim().slice(0, 280) : ''
+      if (!what || !why) continue
+      ds.push({ what, why })
+    }
+    if (ds.length) teach.decisions = ds
+  }
+  if (Array.isArray(o.questions)) {
+    const qs = o.questions
+      .filter((q): q is string => typeof q === 'string' && !!q.trim())
+      .map((q) => q.trim().slice(0, 200))
+      .slice(0, 3)
+    if (qs.length) teach.questions = qs
+  }
+  return teach.flow || teach.decisions || teach.questions ? teach : undefined
+}
+
 export async function POST(req: Request) {
   try {
     const auth = await requireUser(req)
@@ -206,12 +241,21 @@ export async function POST(req: Request) {
     const raw = await askClaude({
       system: solvePasteSystem('code', locale),
       user,
-      maxTokens: 2048,
+      maxTokens: 3200,
       effort: 'medium',
     })
-    const code = stripFences(raw)
+    const [codePart, teachPart] = raw.split(/^={2,}\s*TEACH\s*={2,}\s*$/im)
+    const code = stripFences(codePart ?? raw)
+    let teach: CodeTeach | undefined
+    if (teachPart) {
+      try {
+        teach = sanitizeCodeTeach(parseAiJson(teachPart))
+      } catch {
+        teach = undefined
+      }
+    }
     const remaining = await consumeHints(userId, sessionId, 3, SOLVE_COST)
-    return Response.json({ code, remaining })
+    return Response.json({ code, teach, remaining })
   } catch (e) {
     return aiErrorResponse(e)
   }

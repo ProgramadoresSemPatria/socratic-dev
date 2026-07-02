@@ -39,6 +39,8 @@ const copy = {
     hintUnavailable: 'Hint unavailable.',
     solutionApplied:
       'I applied the solution in the editor. Run the tests and study why it works.',
+    teachDecisions: 'Key decisions:',
+    teachThink: 'Now you — before moving on:',
     solveFallback: "Couldn't solve it right now.",
     noSolutionYet:
       "You haven't written a solution yet — implement something in the editor and submit again.",
@@ -58,6 +60,8 @@ const copy = {
     hintUnavailable: 'Hint indisponível.',
     solutionApplied:
       'Apliquei a solução no editor. Rode os testes e estude por que ela funciona.',
+    teachDecisions: 'Decisões-chave:',
+    teachThink: 'Agora você — antes de seguir:',
     solveFallback: 'Não consegui resolver agora.',
     noSolutionYet:
       'Você ainda não escreveu uma solução — implemente algo no editor e submeta de novo.',
@@ -214,9 +218,28 @@ export function CodeChallengeWorkspace({ user }: { user: User }) {
       s.syncRemaining(data.remaining)
       if (data.code) {
         s.setWork(data.code)
+        const teach = data.teach as
+          | {
+              flow?: string
+              decisions?: { what: string; why: string }[]
+              questions?: string[]
+            }
+          | undefined
+        const parts: string[] = []
+        if (teach?.flow) parts.push(teach.flow)
+        if (teach?.decisions?.length) {
+          parts.push('', `**${t.teachDecisions}**`)
+          for (const d of teach.decisions) {
+            parts.push(`- **${d.what}** — ${d.why}`)
+          }
+        }
+        if (teach?.questions?.length) {
+          parts.push('', `**${t.teachThink}**`)
+          for (const q of teach.questions) parts.push(`- ${q}`)
+        }
         s.pushMessage({
           role: 'ai',
-          text: t.solutionApplied,
+          text: parts.length ? parts.join('\n') : t.solutionApplied,
         })
       } else {
         s.pushMessage({
