@@ -35,8 +35,12 @@ export function useSocraticSession<TWork>(opts: {
   const [hintsRemaining, setHintsRemaining] = React.useState<number | null>(
     null,
   )
+  const [buying, setBuying] = React.useState(false)
+  const [buyError, setBuyError] = React.useState<string | null>(null)
+  const [bought, setBought] = React.useState(false)
 
   const startedAtRef = React.useRef<number>(Date.now())
+  const buyingRef = React.useRef(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)
   const initRef = React.useRef(false)
 
@@ -119,14 +123,24 @@ export function useSocraticSession<TWork>(opts: {
   }
 
   async function buyHints() {
-    if (!user) return
+    if (!user || buyingRef.current) return
+    buyingRef.current = true
+    setBuying(true)
+    setBuyError(null)
+    setBought(false)
     try {
       const token = await getAccessToken()
       await buyHintsAction(token)
       const b = await getHintBalance(token)
       setHintsRemaining(b.remaining)
-    } catch {
-      // ignore
+      setBought(true)
+      setTimeout(() => setBought(false), 2500)
+    } catch (e) {
+      setBuyError(e instanceof Error ? e.message : '')
+      setTimeout(() => setBuyError(null), 5000)
+    } finally {
+      buyingRef.current = false
+      setBuying(false)
     }
   }
 
@@ -164,6 +178,9 @@ export function useSocraticSession<TWork>(opts: {
     spendSolve,
     syncRemaining,
     buyHints,
+    buying,
+    buyError,
+    bought,
     hintsRemaining,
     complete,
   }

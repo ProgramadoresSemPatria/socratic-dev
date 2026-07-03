@@ -1,5 +1,6 @@
 'use client'
 
+import { Spinner } from '@/components/ui/spinner'
 import { useUser } from '@/features/auth/hooks/use-user'
 import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
@@ -11,6 +12,12 @@ type Props = {
   children: (user: User) => React.ReactNode
 }
 
+const defaultFallback = (
+  <div className='grid min-h-dvh place-items-center bg-background'>
+    <Spinner className='size-6 text-muted-foreground' />
+  </div>
+)
+
 export function RequireAuth({ next, fallback, children }: Props) {
   const router = useRouter()
   const { user, loading } = useUser()
@@ -21,7 +28,7 @@ export function RequireAuth({ next, fallback, children }: Props) {
     }
   }, [loading, user, next, router])
 
-  if (loading) return <>{fallback ?? null}</>
-  if (!user) return null
+  if (loading) return <>{fallback ?? defaultFallback}</>
+  if (!user) return <>{fallback ?? defaultFallback}</>
   return <>{children(user)}</>
 }

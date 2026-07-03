@@ -160,7 +160,7 @@ export function ReviewModal({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 24, scale: 0.97 }}
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className='shadow-soft-lg border-border bg-card relative flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border'
+        className='shadow-soft-lg border-border bg-card relative flex max-h-[88dvh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border'
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -171,8 +171,8 @@ export function ReviewModal({
           <X className='size-4' />
         </button>
 
-        <div className='grid min-h-0 flex-1 lg:grid-cols-[300px_1fr]'>
-          <aside className='border-border flex shrink-0 flex-col gap-7 border-b p-7 lg:border-r lg:border-b-0'>
+        <div className='grid min-h-0 flex-1 max-lg:overflow-y-auto lg:grid-cols-[300px_1fr]'>
+          <aside className='border-border flex shrink-0 flex-col gap-7 border-b p-5 sm:p-7 lg:border-r lg:border-b-0'>
             <div>
               <div
                 className={cn(
@@ -211,7 +211,7 @@ export function ReviewModal({
 
             <div title={t.independenceHint}>
               <div className='flex items-baseline'>
-                <span className='font-heading text-ink text-[72px] leading-[0.85] font-light tracking-[-0.04em] tabular-nums'>
+                <span className='font-heading text-ink text-[56px] leading-[0.85] font-light tracking-[-0.04em] tabular-nums sm:text-[72px]'>
                   {independence}
                 </span>
                 <span className='text-muted-foreground ml-1.5 font-mono text-sm'>

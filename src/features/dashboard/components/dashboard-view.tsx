@@ -3,17 +3,17 @@
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CustomChallengeDialog } from '@/features/challenges/components/custom-challenge-dialog'
 import {
   getNextChallenge,
   listSessionsForUser,
   type SessionRow,
 } from '@/features/challenges/actions'
+import { CustomChallengeDialog } from '@/features/challenges/components/custom-challenge-dialog'
 import { getDashboardStats } from '@/features/dashboard/actions'
-import { getAccessToken } from '@/lib/api/client'
 import type { Stats } from '@/features/dashboard/types'
 import { activityLevel } from '@/features/dashboard/utils'
 import { Halftone, glyph } from '@/features/landing/components/halftone'
+import { getAccessToken } from '@/lib/api/client'
 import { useLocale, useT } from '@/lib/i18n'
 import type { User } from '@supabase/supabase-js'
 import {
@@ -76,6 +76,9 @@ const copy = {
     },
     open: 'Open',
     resume: 'Resume',
+    loadError: "Couldn't load your data.",
+    retry: 'Retry',
+    startFailed: "Couldn't generate the challenge. Try again.",
     quote:
       'What comes out of your head is worth a thousand times more than what comes out of mine.',
     quoteBy: 'Socratic tutor, just now',
@@ -118,6 +121,9 @@ const copy = {
     },
     open: 'Abrir',
     resume: 'Retomar',
+    loadError: 'Não foi possível carregar seus dados.',
+    retry: 'Tentar novamente',
+    startFailed: 'Não foi possível gerar o desafio. Tente novamente.',
     quote:
       'O que sai da sua cabeça vale mil vezes mais que o que sai da minha.',
     quoteBy: 'Tutor Socrático, agora há pouco',
@@ -140,9 +146,18 @@ export function DashboardView({ user }: { user: User }) {
   const [stats, setStats] = React.useState<Stats | null>(null)
   const [sessions, setSessions] = React.useState<SessionRow[]>([])
   const [loaded, setLoaded] = React.useState(false)
+  const [loadError, setLoadError] = React.useState(false)
+  const [reloadKey, setReloadKey] = React.useState(0)
+  const [startError, setStartError] = React.useState<string | null>(null)
   const [genDesign, setGenDesign] = React.useState(false)
   const [genCode, setGenCode] = React.useState(false)
   const [customOpen, setCustomOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!startError) return
+    const id = setTimeout(() => setStartError(null), 6000)
+    return () => clearTimeout(id)
+  }, [startError])
 
   async function startDesign() {
     if (genDesign || !user) return
@@ -157,8 +172,12 @@ export function DashboardView({ user }: { user: User }) {
         token: await getAccessToken(),
       })
       if (!('error' in data) && data?.id) router.push(`/design?id=${data.id}`)
-      else setGenDesign(false)
+      else {
+        setStartError('error' in data ? data.error : t.startFailed)
+        setGenDesign(false)
+      }
     } catch {
+      setStartError(t.startFailed)
       setGenDesign(false)
     }
   }
@@ -182,8 +201,12 @@ export function DashboardView({ user }: { user: User }) {
       })
       if (!('error' in data) && data?.id)
         router.push(`/challenge?id=${data.id}`)
-      else setGenCode(false)
+      else {
+        setStartError('error' in data ? data.error : t.startFailed)
+        setGenCode(false)
+      }
     } catch {
+      setStartError(t.startFailed)
       setGenCode(false)
     }
   }
@@ -192,20 +215,32 @@ export function DashboardView({ user }: { user: User }) {
     if (!user) return
     let active = true
     ;(async () => {
-      const token = await getAccessToken()
-      const [s, sess] = await Promise.all([
-        getDashboardStats(token),
-        listSessionsForUser(token),
-      ])
-      if (!active) return
-      if (s && !('error' in s)) setStats(s)
-      setSessions(sess)
-      setLoaded(true)
+      try {
+        const token = await getAccessToken()
+        const [s, sess] = await Promise.all([
+          getDashboardStats(token),
+          listSessionsForUser(token),
+        ])
+        if (!active) return
+        if (s && !('error' in s)) setStats(s)
+        else setLoadError(true)
+        setSessions(sess)
+      } catch {
+        if (active) setLoadError(true)
+      } finally {
+        if (active) setLoaded(true)
+      }
     })()
     return () => {
       active = false
     }
-  }, [user])
+  }, [user, reloadKey])
+
+  function retryLoad() {
+    setLoaded(false)
+    setLoadError(false)
+    setReloadKey((k) => k + 1)
+  }
 
   const score = stats?.independence_score ?? 100
 
@@ -232,11 +267,18 @@ export function DashboardView({ user }: { user: User }) {
             <div className='relative z-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between'>
               <div className='min-w-0'>
                 <p className='eyebrow mb-3'>{t.welcome}</p>
-                {loaded ? (
+                {!loaded ? (
+                  <>
+                    <Skeleton className='h-11 w-[22rem] max-w-full lg:h-14' />
+                    <Skeleton className='mt-4 h-5 w-64 max-w-full' />
+                  </>
+                ) : loadError ? (
+                  <h1 className='type-h2 text-balance'>{t.startPrompt}</h1>
+                ) : (
                   <>
                     <h1 className='type-h2 text-balance'>
                       {t.youAre}{' '}
-                      <span className='font-serif font-normal italic text-primary'>
+                      <span className='font-serif font-normal text-primary italic'>
                         {score}
                         {t.independentSuffix}
                       </span>
@@ -256,48 +298,57 @@ export function DashboardView({ user }: { user: User }) {
                       </p>
                     </div>
                   </>
-                ) : (
-                  <>
-                    <Skeleton className='h-11 w-[22rem] max-w-full lg:h-14' />
-                    <Skeleton className='mt-4 h-5 w-64 max-w-full' />
-                  </>
                 )}
               </div>
-              <div className='flex flex-col gap-2 sm:flex-row lg:shrink-0 lg:justify-end'>
-                <Button
-                  variant='outline'
-                  size='lg'
-                  onClick={() => setCustomOpen(true)}
-                >
-                  <PenLine strokeWidth={1.5} />
-                  {t.custom}
-                </Button>
-                <Button
-                  variant='outline'
-                  size='lg'
-                  onClick={startDesign}
-                  loading={genDesign}
-                >
-                  <Network strokeWidth={1.5} />
-                  System Design
-                </Button>
-                <Button
-                  variant='ink'
-                  size='lg'
-                  onClick={startCode}
-                  loading={genCode}
-                  className='group'
-                >
-                  <Sparkles strokeWidth={1.5} />
-                  {t.newChallenge}
-                  <ArrowRight className='transition-transform duration-200 group-hover:translate-x-0.5' />
-                </Button>
+              <div className='flex flex-col gap-2 lg:shrink-0 lg:items-end'>
+                <div className='flex flex-col gap-2 sm:flex-row lg:justify-end'>
+                  <Button
+                    variant='outline'
+                    size='lg'
+                    onClick={() => setCustomOpen(true)}
+                  >
+                    <PenLine strokeWidth={1.5} />
+                    {t.custom}
+                  </Button>
+                  <Button
+                    variant='outline'
+                    size='lg'
+                    onClick={startDesign}
+                    loading={genDesign}
+                  >
+                    <Network strokeWidth={1.5} />
+                    System Design
+                  </Button>
+                  <Button
+                    variant='ink'
+                    size='lg'
+                    onClick={startCode}
+                    loading={genCode}
+                    className='group'
+                  >
+                    <Sparkles strokeWidth={1.5} />
+                    {t.newChallenge}
+                    <ArrowRight className='transition-transform duration-200 group-hover:translate-x-0.5' />
+                  </Button>
+                </div>
+                {startError && (
+                  <p role='alert' className='text-sm text-destructive'>
+                    {startError}
+                  </p>
+                )}
               </div>
             </div>
           </motion.section>
 
           {!loaded ? (
             <DashboardSkeleton />
+          ) : loadError ? (
+            <div className='flex flex-col items-center rounded-lg border border-border bg-card px-6 py-14 text-center'>
+              <p className='text-sm text-muted-foreground'>{t.loadError}</p>
+              <Button variant='outline' className='mt-5' onClick={retryLoad}>
+                {t.retry}
+              </Button>
+            </div>
           ) : (
             <>
               <div className='mb-14 grid grid-cols-2 gap-y-10 lg:grid-cols-4'>
@@ -339,23 +390,27 @@ export function DashboardView({ user }: { user: User }) {
                 </div>
               </motion.section>
 
-              <RecentChallenges items={sessions} />
+              <RecentChallenges
+                items={sessions}
+                onNew={startCode}
+                creating={genCode}
+              />
 
               <motion.figure
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.7, ease: EASE }}
-                className='bg-ink dark:border-border dark:bg-card mt-14 rounded-lg px-6 py-12 lg:px-14 lg:py-14 dark:border'
+                className='mt-14 rounded-lg bg-ink px-6 py-12 lg:px-14 lg:py-14 dark:border dark:border-border dark:bg-card'
               >
-                <blockquote className='text-background dark:text-foreground max-w-[720px] font-serif text-2xl leading-snug font-light italic lg:text-[32px]'>
+                <blockquote className='max-w-[720px] font-serif text-2xl leading-snug font-light text-background italic lg:text-[32px] dark:text-foreground'>
                   &ldquo;{t.quote}&rdquo;
                 </blockquote>
                 <figcaption className='mt-8 flex items-center gap-3'>
-                  <span className='bg-lime text-ink dark:text-background font-heading grid size-10 shrink-0 place-items-center rounded-full text-lg font-light'>
+                  <span className='grid size-10 shrink-0 place-items-center rounded-full bg-lime font-heading text-lg font-light text-ink dark:text-background'>
                     Σ
                   </span>
-                  <span className='text-background/50 dark:text-foreground/50 font-mono text-xs tracking-wide'>
+                  <span className='font-mono text-xs tracking-wide text-background/50 dark:text-foreground/50'>
                     {t.quoteBy}
                   </span>
                 </figcaption>
@@ -386,7 +441,9 @@ function DashboardSkeleton() {
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className='border-l border-border px-5 first:border-l-0 lg:px-8'
+            className={`border-border px-5 lg:px-8 ${
+              i === 0 ? '' : i === 2 ? 'lg:border-l' : 'border-l'
+            }`}
           >
             <Skeleton className='h-12 w-16' />
             <Skeleton className='mt-3 h-3 w-20' />
@@ -442,9 +499,11 @@ function StatCol({
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: i * 0.06, duration: 0.5, ease: EASE }}
-      className='border-l border-border px-5 first:border-l-0 lg:px-8'
+      className={`border-border px-5 lg:px-8 ${
+        i === 0 ? '' : i === 2 ? 'lg:border-l' : 'border-l'
+      }`}
     >
-      <div className='font-heading text-5xl font-light leading-none tracking-tight text-ink tabular-nums lg:text-[56px]'>
+      <div className='font-heading text-5xl leading-none font-light tracking-tight text-ink tabular-nums lg:text-[56px]'>
         {value}
       </div>
       <div className='mt-3 font-mono text-[11px] tracking-wider text-muted-foreground uppercase'>
@@ -537,7 +596,7 @@ function IndependenceRing({ score }: { score: number }) {
   const t = useT(copy)
   const data = [{ name: 'indep', value: score, fill: 'var(--chart-1)' }]
   return (
-    <div className='border-border flex flex-col items-start border-t pt-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-12'>
+    <div className='flex flex-col items-start border-t border-border pt-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-12'>
       <p className='eyebrow'>{t.scoreEyebrow}</p>
       <h2 className='type-h4 mt-2'>{t.scoreTitle}</h2>
       <div className='relative mx-auto mt-5 size-[170px]'>
@@ -559,19 +618,27 @@ function IndependenceRing({ score }: { score: number }) {
           </RadialBarChart>
         </ResponsiveContainer>
         <div className='pointer-events-none absolute inset-0 grid place-items-center'>
-          <span className='font-heading text-ink text-4xl font-light tracking-tight tabular-nums'>
+          <span className='font-heading text-4xl font-light tracking-tight text-ink tabular-nums'>
             {score}%
           </span>
         </div>
       </div>
-      <p className='text-muted-foreground mx-auto mt-4 max-w-[220px] text-center font-mono text-[11px]'>
+      <p className='mx-auto mt-4 max-w-[220px] text-center font-mono text-[11px] text-muted-foreground'>
         {t.scoreCaption}
       </p>
     </div>
   )
 }
 
-function RecentChallenges({ items }: { items: SessionRow[] }) {
+function RecentChallenges({
+  items,
+  onNew,
+  creating,
+}: {
+  items: SessionRow[]
+  onNew: () => void
+  creating: boolean
+}) {
   const t = useT(copy)
   const { locale } = useLocale()
   const PAGE_SIZE = 6
@@ -595,6 +662,9 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
         </div>
         {items.length > PAGE_SIZE && (
           <div className='flex items-center gap-2 font-mono text-[11px] text-muted-foreground'>
+            <span className='sm:hidden'>
+              {page + 1}/{totalPages}
+            </span>
             <span className='hidden sm:inline'>
               {start + 1}–{Math.min(start + PAGE_SIZE, items.length)} {t.of}{' '}
               {items.length}
@@ -622,9 +692,13 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
       </div>
 
       {items.length === 0 ? (
-        <p className='mt-8 border-t border-border pt-8 text-sm text-muted-foreground'>
-          {t.historyEmpty}
-        </p>
+        <div className='mt-8 flex flex-col items-start gap-5 border-t border-border pt-8'>
+          <p className='text-sm text-muted-foreground'>{t.historyEmpty}</p>
+          <Button variant='ink' onClick={onNew} loading={creating}>
+            <Sparkles strokeWidth={1.5} />
+            {t.newChallenge}
+          </Button>
+        </div>
       ) : (
         <div className='mt-8'>
           {pageItems.map((c) => {
@@ -662,7 +736,7 @@ function RecentChallenges({ items }: { items: SessionRow[] }) {
                   >
                     {(t.status as Record<string, string>)[c.status] ?? c.status}
                   </span>
-                  <span className='inline-flex items-center gap-1 font-mono text-[11px] text-primary opacity-0 transition-opacity duration-200 group-hover:opacity-100'>
+                  <span className='inline-flex items-center gap-1 font-mono text-[11px] text-primary opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100'>
                     {c.status === 'completed' ? t.open : t.resume}
                     <ArrowRight className='size-3.5 transition-transform duration-200 group-hover:translate-x-0.5' />
                   </span>
