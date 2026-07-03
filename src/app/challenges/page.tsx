@@ -29,6 +29,8 @@ const copy = {
     filters: { all: 'All', code: 'Code', design: 'System Design' },
     empty: 'No challenges under this filter yet.',
     emptyCta: 'Generate the first one',
+    loadError: "Couldn't load the challenges.",
+    retry: 'Reload',
     levels: {
       beginner: 'Beginner',
       intermediate: 'Intermediate',
@@ -47,6 +49,8 @@ const copy = {
     filters: { all: 'Todos', code: 'Código', design: 'System Design' },
     empty: 'Nenhum desafio nesse filtro ainda.',
     emptyCta: 'Gerar o primeiro',
+    loadError: 'Não foi possível carregar os desafios.',
+    retry: 'Recarregar',
     levels: {
       beginner: 'Iniciante',
       intermediate: 'Intermediário',
@@ -115,6 +119,8 @@ function dedupe(list: Challenge[]): Challenge[] {
 export default function ChallengesLibraryPage() {
   const t = useT(copy)
   const [challenges, setChallenges] = React.useState<Challenge[] | null>(null)
+  const [loadError, setLoadError] = React.useState(false)
+  const [reloadKey, setReloadKey] = React.useState(0)
   const [filter, setFilter] = React.useState<Filter>('all')
   const [page, setPage] = React.useState(0)
   const PAGE = 9
@@ -122,16 +128,24 @@ export default function ChallengesLibraryPage() {
   React.useEffect(() => {
     let active = true
     ;(async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('challenges')
         .select('*')
         .order('created_at', { ascending: false })
-      if (active) setChallenges((data as unknown as Challenge[]) ?? [])
+      if (!active) return
+      if (error) setLoadError(true)
+      else setChallenges((data as unknown as Challenge[]) ?? [])
     })()
     return () => {
       active = false
     }
-  }, [])
+  }, [reloadKey])
+
+  function retryLoad() {
+    setLoadError(false)
+    setChallenges(null)
+    setReloadKey((k) => k + 1)
+  }
 
   const unique = dedupe(challenges ?? [])
   const visible = unique.filter((c) =>
@@ -204,7 +218,20 @@ export default function ChallengesLibraryPage() {
           </div>
 
           <div className='mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
-            {!challenges ? (
+            {loadError ? (
+              <div className='col-span-full flex flex-col items-center py-16 text-center'>
+                <span
+                  aria-hidden
+                  className='font-mono text-[72px] leading-none text-ink/[0.08] select-none'
+                >
+                  {'{ }'}
+                </span>
+                <p className='type-body mt-6 max-w-[380px]'>{t.loadError}</p>
+                <Button variant='outline' className='mt-6' onClick={retryLoad}>
+                  {t.retry}
+                </Button>
+              </div>
+            ) : !challenges ? (
               [0, 1, 2, 3, 4, 5].map((i) => (
                 <Skeleton key={i} className='h-44 rounded-lg' />
               ))

@@ -17,6 +17,7 @@ import {
 import { apiFetch } from '@/lib/api/client'
 import { useT } from '@/lib/i18n'
 import { supabase } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
 import type { User } from '@supabase/supabase-js'
 import { Loader2, Wand2 } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
@@ -43,6 +44,12 @@ const copy = {
     reviewFallback: "Couldn't generate the review.",
     canvasLabel: 'Canvas: draw your architecture',
     askAnalysis: 'Ask for analysis',
+    errNetwork: 'Lost connection to the tutor — try again.',
+    notFound: 'Challenge not found',
+    backToDashboard: 'Back to dashboard',
+    panelBriefing: 'Briefing',
+    panelWork: 'Canvas',
+    panelTutor: 'Tutor',
   },
   pt: {
     intro:
@@ -60,6 +67,12 @@ const copy = {
     reviewFallback: 'Não foi possível gerar o review.',
     canvasLabel: 'Canvas: desenhe sua arquitetura',
     askAnalysis: 'Pedir análise',
+    errNetwork: 'Sem conexão com o tutor — tente de novo.',
+    notFound: 'Desafio não encontrado',
+    backToDashboard: 'Voltar ao dashboard',
+    panelBriefing: 'Briefing',
+    panelWork: 'Canvas',
+    panelTutor: 'Tutor',
   },
 }
 
@@ -67,6 +80,10 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
   const router = useRouter()
   const t = useT(copy)
   const [challenge, setChallenge] = React.useState<Challenge | null>(null)
+  const [loadError, setLoadError] = React.useState(false)
+  const [activePanel, setActivePanel] = React.useState<
+    'brief' | 'work' | 'chat'
+  >('brief')
   const apiRef = React.useRef<ExcalidrawApi | null>(null)
   const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -91,7 +108,7 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
         typeof window !== 'undefined'
           ? new URLSearchParams(window.location.search).get('id')
           : null
-      const { data } = id
+      const { data, error } = id
         ? await supabase.from('challenges').select('*').eq('id', id).single()
         : await supabase
             .from('challenges')
@@ -100,8 +117,12 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
             .order('created_at', { ascending: true })
             .limit(1)
             .single()
-      if (active && data) setChallenge(data as unknown as Challenge)
-    })()
+      if (!active) return
+      if (error || !data) setLoadError(true)
+      else setChallenge(data as unknown as Challenge)
+    })().catch(() => {
+      if (active) setLoadError(true)
+    })
     return () => {
       active = false
     }
@@ -138,6 +159,8 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
         role: 'ai',
         text: data.text || data.error || t.replyFallback,
       })
+    } catch {
+      s.pushMessage({ role: 'ai', text: t.errNetwork })
     } finally {
       s.setThinking(false)
     }
@@ -156,6 +179,8 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
         role: 'ai',
         text: data.text || data.error || t.analyzeFallback,
       })
+    } catch {
+      s.pushMessage({ role: 'ai', text: t.errNetwork })
     } finally {
       s.setThinking(false)
     }
@@ -164,7 +189,6 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
   async function askHint(level: 1 | 2 | 3) {
     if (s.thinking || !challenge) return
     s.setThinking(true)
-    s.applyHint(level)
     try {
       const res = await apiFetch('/api/tutor', {
         ...POST,
@@ -177,11 +201,14 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
       })
       const data = await res.json()
       s.syncRemaining(data.remaining)
+      if (data.text) s.applyHint(level)
       s.pushMessage({
         role: 'ai',
         text: data.text || data.error || t.hintUnavailable,
         hintLevel: level,
       })
+    } catch {
+      s.pushMessage({ role: 'ai', text: t.errNetwork })
     } finally {
       s.setThinking(false)
     }
@@ -247,6 +274,8 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
           text: data.error || t.solveFallback,
         })
       }
+    } catch {
+      s.pushMessage({ role: 'ai', text: t.errNetwork })
     } finally {
       s.setThinking(false)
     }
@@ -291,6 +320,9 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
       })
       const data = await res.json()
       setReview(data.review || data.error || t.reviewFallback)
+    } catch {
+      setReviewOpen(false)
+      s.pushMessage({ role: 'ai', text: t.errNetwork })
     } finally {
       setReviewing(false)
     }
@@ -301,10 +333,21 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
     saveTimer.current = setTimeout(() => s.setWork(elements), 500)
   }
 
+  if (loadError)
+    return (
+      <div className='flex h-dvh flex-col items-center justify-center gap-4 bg-background'>
+        <span className='font-mono text-4xl text-muted-foreground'>∅</span>
+        <h1 className='text-xl font-light'>{t.notFound}</h1>
+        <Button variant='outline' onClick={() => router.push('/dashboard')}>
+          {t.backToDashboard}
+        </Button>
+      </div>
+    )
+
   if (!challenge) return <ChallengeSkeleton />
 
   return (
-    <div className='relative flex h-screen flex-col overflow-hidden bg-background'>
+    <div className='relative flex h-dvh flex-col overflow-hidden bg-background'>
       <WorkspaceHeader
         title={challenge.title}
         elapsed={s.elapsed}
@@ -313,12 +356,44 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
         onSubmit={submitDesign}
       />
 
-      <div className='grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[360px_1fr_400px] lg:grid-rows-[minmax(0,1fr)]'>
-        <aside className='min-h-0 overflow-y-auto border-r border-border bg-muted'>
+      <div className='flex shrink-0 items-center gap-1 border-b border-border bg-muted px-4 py-2 lg:hidden'>
+        {(['brief', 'work', 'chat'] as const).map((p) => (
+          <button
+            key={p}
+            type='button'
+            onClick={() => setActivePanel(p)}
+            className={cn(
+              'rounded-full px-3 py-1 font-mono text-[12px] transition-colors',
+              activePanel === p
+                ? 'bg-ink text-background'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {p === 'brief'
+              ? t.panelBriefing
+              : p === 'work'
+                ? t.panelWork
+                : t.panelTutor}
+          </button>
+        ))}
+      </div>
+
+      <div className='flex min-h-0 flex-1 flex-col overflow-hidden lg:grid lg:grid-cols-[360px_1fr_400px] lg:grid-rows-[minmax(0,1fr)]'>
+        <aside
+          className={cn(
+            'min-h-0 overflow-y-auto border-border bg-muted lg:border-r',
+            activePanel === 'brief' ? 'flex-1' : 'hidden lg:block',
+          )}
+        >
           <BriefingPanel challenge={challenge} />
         </aside>
 
-        <section className='relative flex min-h-0 flex-col border-r border-border'>
+        <section
+          className={cn(
+            'relative min-h-0 flex-col border-border lg:border-r',
+            activePanel === 'work' ? 'flex flex-1' : 'hidden lg:flex',
+          )}
+        >
           <div className='flex h-10 shrink-0 items-center justify-between border-b border-border bg-muted px-4'>
             <div className='font-mono text-[12px] text-muted-foreground'>
               {t.canvasLabel}
@@ -355,7 +430,12 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
           </div>
         </section>
 
-        <aside className='flex min-h-0 flex-col border-l border-border bg-muted'>
+        <aside
+          className={cn(
+            'min-h-0 flex-col border-border bg-muted lg:border-l',
+            activePanel === 'chat' ? 'flex flex-1' : 'hidden lg:flex',
+          )}
+        >
           <ChatPanel
             messages={s.messages}
             scrollRef={s.scrollRef}
@@ -368,6 +448,9 @@ export function DesignChallengeWorkspace({ user }: { user: User }) {
             hintsRemaining={s.hintsRemaining}
             onSolve={askSolve}
             onBuy={s.buyHints}
+            buying={s.buying}
+            buyError={s.buyError}
+            bought={s.bought}
           />
         </aside>
       </div>

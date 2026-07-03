@@ -5,7 +5,7 @@ import { SOLVE_COST } from '@/features/hints/constants'
 import type { ChatMsg } from '@/lib/ai/types'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { Lightbulb, Send, Sparkles, Wand2 } from 'lucide-react'
+import { Lightbulb, Loader2, Send, Sparkles, Wand2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { FormattedText } from './formatted-text'
 
@@ -20,6 +20,8 @@ const copy = {
     hintMedium: 'Medium',
     hintDirect: 'Almost direct',
     buyHints: 'Buy +10 hints',
+    buySuccess: '+10 hints',
+    buyFailed: 'Could not buy hints',
     solveTitle: 'Reveals the full solution (last resort)',
     solveForMe: 'Solve it for me',
     placeholder: 'Think first. Then ask...',
@@ -39,6 +41,8 @@ const copy = {
     hintMedium: 'Médio',
     hintDirect: 'Quase direto',
     buyHints: 'Comprar +10 hints',
+    buySuccess: '+10 hints',
+    buyFailed: 'Não foi possível comprar hints',
     solveTitle: 'Revela a solução completa (último recurso)',
     solveForMe: 'Resolver pra mim',
     placeholder: 'Pense primeiro. Depois pergunte...',
@@ -69,6 +73,9 @@ export function ChatPanel({
   hintsRemaining,
   onSolve,
   onBuy,
+  buying,
+  buyError,
+  bought,
 }: {
   messages: ChatMsg[]
   scrollRef: React.RefObject<HTMLDivElement | null>
@@ -81,6 +88,9 @@ export function ChatPanel({
   hintsRemaining: number | null
   onSolve: () => void
   onBuy: () => void
+  buying?: boolean
+  buyError?: string | null
+  bought?: boolean
 }) {
   const t = useT(copy)
   const noHints = hintsRemaining !== null && hintsRemaining <= 0
@@ -182,16 +192,22 @@ export function ChatPanel({
           {noHints ? (
             <button
               onClick={onBuy}
-              className='flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 font-mono text-[10px] text-primary transition-colors duration-200 hover:bg-primary/10'
+              disabled={buying}
+              className='flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-3 font-mono text-[10px] text-primary transition-colors duration-200 hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-60 lg:py-1.5'
             >
-              <Sparkles className='size-3' strokeWidth={1.5} /> {t.buyHints}
+              {buying ? (
+                <Loader2 className='size-3 animate-spin' strokeWidth={1.5} />
+              ) : (
+                <Sparkles className='size-3' strokeWidth={1.5} />
+              )}{' '}
+              {t.buyHints}
             </button>
           ) : (
             <button
               onClick={onSolve}
               disabled={cantSolve}
               title={t.solveTitle}
-              className='flex w-full cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-1.5 font-mono text-[10px] text-ink transition-colors duration-200 hover:border-primary/30 hover:bg-primary/5 disabled:opacity-40'
+              className='flex w-full cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-3 font-mono text-[10px] text-ink transition-colors duration-200 hover:border-primary/30 hover:bg-primary/5 disabled:opacity-40 lg:py-1.5'
             >
               <Wand2 className='size-3 text-primary' strokeWidth={1.5} />{' '}
               {t.solveForMe}
@@ -200,6 +216,15 @@ export function ChatPanel({
               </span>
             </button>
           )}
+          {buyError != null ? (
+            <div className='mt-1.5 px-2 font-mono text-[10px] text-destructive'>
+              {buyError || t.buyFailed}
+            </div>
+          ) : bought ? (
+            <div className='mt-1.5 px-2 font-mono text-[10px] text-mint'>
+              {t.buySuccess}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -217,7 +242,7 @@ export function ChatPanel({
               }}
               placeholder={t.placeholder}
               rows={1}
-              className='w-full resize-none bg-transparent px-4 py-2.5 text-[13.5px] text-ink outline-none placeholder:text-muted-foreground'
+              className='w-full resize-none bg-transparent px-4 py-2.5 text-[16px] text-ink outline-none placeholder:text-muted-foreground lg:text-[13.5px]'
             />
           </div>
           <Button
@@ -230,7 +255,7 @@ export function ChatPanel({
             <Send className='size-3.5' />
           </Button>
         </div>
-        <div className='mt-2 px-2 font-mono text-[10px] text-muted-foreground'>
+        <div className='mt-2 hidden px-2 font-mono text-[10px] text-muted-foreground md:block'>
           {t.inputHelp}
         </div>
       </div>
@@ -256,7 +281,7 @@ function HintBtn({
       onClick={onClick}
       disabled={disabled}
       title={t.hintCostTitle(cost)}
-      className='flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-full border border-border px-2 py-1.5 font-mono text-[10px] text-ink transition-colors duration-200 hover:border-warning/50 hover:bg-warning/10 disabled:cursor-not-allowed disabled:opacity-40'
+      className='flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-full border border-border px-2 py-3 font-mono text-[10px] text-ink transition-colors duration-200 hover:border-warning/50 hover:bg-warning/10 disabled:cursor-not-allowed disabled:opacity-40 lg:py-1.5'
     >
       <Lightbulb
         className='size-3 shrink-0 text-warning-foreground'

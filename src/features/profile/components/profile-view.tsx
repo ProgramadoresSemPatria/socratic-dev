@@ -80,6 +80,8 @@ const copy = {
     languageDesc: 'Interface language.',
     redoSetup: 'Redo setup',
     signOut: 'Sign out',
+    loadError: "Couldn't load your data.",
+    retry: 'Retry',
   },
   pt: {
     dateLocale: 'pt-BR',
@@ -121,6 +123,8 @@ const copy = {
     languageDesc: 'Idioma da interface.',
     redoSetup: 'Refazer setup',
     signOut: 'Sair',
+    loadError: 'Não foi possível carregar seus dados.',
+    retry: 'Tentar novamente',
   },
 }
 
@@ -134,6 +138,8 @@ export function ProfileView({ user }: { user: User }) {
   const [profile, setProfile] = React.useState<Profile | null>(null)
   const [stats, setStats] = React.useState<Stats | null>(null)
   const [loaded, setLoaded] = React.useState(false)
+  const [loadError, setLoadError] = React.useState(false)
+  const [reloadKey, setReloadKey] = React.useState(0)
   const [track, setTrack] = React.useState('')
   const [stack, setStack] = React.useState('')
   const [level, setLevel] = React.useState('')
@@ -177,20 +183,33 @@ export function ProfileView({ user }: { user: User }) {
     if (!user) return
     let active = true
     ;(async () => {
-      const token = await getAccessToken()
-      const [p, s] = await Promise.all([
-        getProfile(token),
-        getDashboardStats(token),
-      ])
-      if (!active) return
-      if (p) setProfile(p)
-      if (s && !('error' in s)) setStats(s)
-      setLoaded(true)
+      try {
+        const token = await getAccessToken()
+        const [p, s] = await Promise.all([
+          getProfile(token),
+          getDashboardStats(token),
+        ])
+        if (!active) return
+        if (p) setProfile(p)
+        else setLoadError(true)
+        if (s && !('error' in s)) setStats(s)
+        else setLoadError(true)
+      } catch {
+        if (active) setLoadError(true)
+      } finally {
+        if (active) setLoaded(true)
+      }
     })()
     return () => {
       active = false
     }
-  }, [user])
+  }, [user, reloadKey])
+
+  function retryLoad() {
+    setLoaded(false)
+    setLoadError(false)
+    setReloadKey((k) => k + 1)
+  }
 
   const ready = !!user && loaded
   const avatarUrl = (user?.user_metadata as { avatar_url?: string } | undefined)
@@ -250,20 +269,33 @@ export function ProfileView({ user }: { user: User }) {
             <ProfileSkeleton />
           ) : (
             <>
-              <section className='mt-12 grid grid-cols-3'>
-                <StatCol
-                  value={String(stats?.total_completed ?? 0)}
-                  label={t.statCompleted}
-                />
-                <StatCol
-                  value={`${stats?.independence_score ?? 100}%`}
-                  label={t.statIndependence}
-                />
-                <StatCol
-                  value={String(stats?.total_hints ?? 0)}
-                  label={t.statHints}
-                />
-              </section>
+              {loadError ? (
+                <section className='mt-12 flex flex-col items-center rounded-lg border border-border bg-card px-6 py-10 text-center'>
+                  <p className='text-sm text-muted-foreground'>{t.loadError}</p>
+                  <Button
+                    variant='outline'
+                    className='mt-5'
+                    onClick={retryLoad}
+                  >
+                    {t.retry}
+                  </Button>
+                </section>
+              ) : (
+                <section className='mt-12 grid grid-cols-1 gap-y-6 sm:grid-cols-3'>
+                  <StatCol
+                    value={String(stats?.total_completed ?? 0)}
+                    label={t.statCompleted}
+                  />
+                  <StatCol
+                    value={`${stats?.independence_score ?? 100}%`}
+                    label={t.statIndependence}
+                  />
+                  <StatCol
+                    value={String(stats?.total_hints ?? 0)}
+                    label={t.statHints}
+                  />
+                </section>
+              )}
 
               <section className='mt-14'>
                 <div className='flex items-end justify-between gap-4 border-b border-border pb-4'>
@@ -372,7 +404,7 @@ export function ProfileView({ user }: { user: User }) {
 
 function StatCol({ value, label }: { value: string; label: string }) {
   return (
-    <div className='border-l border-border pl-5 first:border-l-0 first:pl-0 sm:pl-8'>
+    <div className='border-border sm:border-l sm:pl-8 sm:first:border-l-0 sm:first:pl-0'>
       <div className='font-heading text-[44px] leading-none font-light tracking-tight text-ink tabular-nums sm:text-[56px]'>
         {value}
       </div>
@@ -454,7 +486,7 @@ function Segmented({
           key={o.value}
           type='button'
           onClick={() => onChange(o.value)}
-          className={`rounded-full px-3.5 py-1.5 font-mono text-[11px] tracking-wider uppercase transition-colors ${
+          className={`min-h-10 rounded-full px-3.5 py-2 font-mono text-[11px] tracking-wider uppercase transition-colors ${
             value === o.value
               ? 'bg-ink text-background'
               : 'text-muted-foreground hover:text-ink'
@@ -470,11 +502,11 @@ function Segmented({
 function ProfileSkeleton() {
   return (
     <div>
-      <div className='mt-12 grid grid-cols-3'>
+      <div className='mt-12 grid grid-cols-1 gap-y-6 sm:grid-cols-3'>
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className='border-l border-border pl-5 first:border-l-0 first:pl-0 sm:pl-8'
+            className='border-border sm:border-l sm:pl-8 sm:first:border-l-0 sm:first:pl-0'
           >
             <Skeleton className='h-11 w-16 sm:h-14' />
             <Skeleton className='mt-3 h-3 w-20' />
@@ -527,7 +559,5 @@ function SaveBadge({ state }: { state: SaveState }) {
     error: [t.error, 'text-destructive'],
   } as const
   const [text, cls] = map[state]
-  return (
-    <span className={`shrink-0 font-mono text-[11px] ${cls}`}>{text}</span>
-  )
+  return <span className={`shrink-0 font-mono text-[11px] ${cls}`}>{text}</span>
 }
