@@ -2,6 +2,13 @@
 
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { signOut } from '@/features/auth/hooks/use-user'
 import { getDashboardStats } from '@/features/dashboard/actions'
@@ -13,7 +20,7 @@ import { useLocale, useT, type Locale } from '@/lib/i18n'
 import { supabase } from '@/lib/supabase/client'
 import { useTheme, type ThemeSetting } from '@/lib/theme'
 import type { User } from '@supabase/supabase-js'
-import { ArrowRight, ChevronDown, LogOut } from 'lucide-react'
+import { ArrowRight, LogOut } from 'lucide-react'
 import { motion } from 'motion/react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -412,24 +419,22 @@ function SelectControl({
   onChange: (value: string) => void
 }) {
   return (
-    <div className='relative'>
-      <select
-        aria-label={ariaLabel}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className='w-full appearance-none rounded-full border border-border bg-background py-2 pr-9 pl-4 text-sm font-medium text-ink transition-colors outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 sm:w-[200px]'
-      >
-        <option value='' disabled>
-          {placeholder}
-        </option>
+    <Select
+      items={options}
+      value={value || null}
+      onValueChange={(v) => onChange((v as string | null) ?? '')}
+    >
+      <SelectTrigger aria-label={ariaLabel} className='w-full sm:w-[200px]'>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
         {options.map((o) => (
-          <option key={o.value} value={o.value}>
+          <SelectItem key={o.value} value={o.value}>
             {o.label}
-          </option>
+          </SelectItem>
         ))}
-      </select>
-      <ChevronDown className='pointer-events-none absolute top-1/2 right-3.5 size-4 -translate-y-1/2 text-muted-foreground' />
-    </div>
+      </SelectContent>
+    </Select>
   )
 }
 
