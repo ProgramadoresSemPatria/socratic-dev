@@ -1,10 +1,10 @@
 'use client'
 
+import { stackById } from '@/domain/stacks'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { Building, Sparkles } from 'lucide-react'
 import type { Challenge } from '../types'
-import { levelLabel } from '../utils'
 
 const copy = {
   en: {
@@ -12,19 +12,28 @@ const copy = {
     houseRule: 'House rule',
     houseRuleBody:
       "The tutor won't give you the answer. It asks questions. If you want a direct hint, you pay in independence points.",
+    levels: {
+      beginner: 'Beginner',
+      intermediate: 'Intermediate',
+      advanced: 'Advanced',
+    },
   },
   pt: {
     eyebrow: 'Briefing do cliente',
     houseRule: 'Regra da casa',
     houseRuleBody:
       'O tutor não vai te dar a resposta. Ele faz perguntas. Se você quiser um hint direto, paga em pontos de independência.',
+    levels: {
+      beginner: 'Iniciante',
+      intermediate: 'Intermediário',
+      advanced: 'Avançado',
+    },
   },
 }
 
 function stackLabel(c: Challenge): string {
   if (c.kind === 'design') return 'System Design'
-  if (c.stack === 'javascript') return 'JavaScript'
-  return 'TypeScript'
+  return stackById(c.stack)?.label ?? c.stack
 }
 
 const PERSONA_RE = /^Cliente:\s*([^()]+?)\s*\(([^)]+)\)\s*—\s*(.+)$/
@@ -108,7 +117,8 @@ export function BriefingPanel({ challenge }: { challenge: Challenge }) {
           {stackLabel(challenge)}
         </span>
         <span className='rounded-full border border-border px-2.5 py-0.5'>
-          {levelLabel(challenge.level)}
+          {(t.levels as Record<string, string>)[challenge.level] ??
+            challenge.level}
         </span>
       </div>
 

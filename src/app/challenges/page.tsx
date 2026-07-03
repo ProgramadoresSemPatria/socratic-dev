@@ -3,6 +3,7 @@
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { stackById } from '@/domain/stacks'
 import type { Challenge } from '@/features/challenges/types'
 import { levelLabel } from '@/features/challenges/utils'
 import { useT } from '@/lib/i18n'
@@ -62,8 +63,7 @@ const copy = {
 
 function stackLabel(c: Challenge): string {
   if (c.kind === 'design') return 'System Design'
-  if (c.stack === 'javascript') return 'JavaScript'
-  return 'TypeScript'
+  return stackById(c.stack)?.label ?? c.stack
 }
 
 function cardGlyph(c: Challenge): string {

@@ -3,6 +3,7 @@
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { stackById } from '@/domain/stacks'
 import {
   getNextChallenge,
   listSessionsForUser,
@@ -706,9 +707,9 @@ function RecentChallenges({
             const href = `${isDesign ? '/design' : '/challenge'}?id=${c.challenge_id}`
             const stackLabel = isDesign
               ? 'System Design'
-              : c.challenges?.stack === 'javascript'
-                ? 'JavaScript'
-                : 'TypeScript'
+              : (stackById(c.challenges?.stack ?? '')?.label ??
+                c.challenges?.stack ??
+                '')
             return (
               <Link
                 key={c.id}
