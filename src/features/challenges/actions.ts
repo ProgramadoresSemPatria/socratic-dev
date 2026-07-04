@@ -6,7 +6,7 @@ import {
   type GenLevel,
 } from '@/lib/ai/generate-challenge'
 import { recommendSystem } from '@/lib/ai/prompts/recommend'
-import { computeIndependence } from '@/domain/scoring'
+import { challengePoints, computeIndependence } from '@/domain/scoring'
 import { authActionUser } from '@/lib/api/guard'
 import { rateLimit } from '@/lib/api/guard'
 import { getLocale } from '@/lib/i18n/server'
@@ -52,10 +52,16 @@ export async function completeSession(args: {
   if ('error' in a) return
   const { data: own } = await supabaseAdmin
     .from('sessions')
-    .select('user_id')
+    .select('user_id, challenge_id, points, challenges(level)')
     .eq('id', args.id)
     .maybeSingle()
-  if (!own || (own as { user_id: string }).user_id !== a.userId) return
+  const session = own as {
+    user_id: string
+    challenge_id: string
+    points: number | null
+    challenges: { level: string } | null
+  } | null
+  if (!session || session.user_id !== a.userId) return
 
   const { data: hints } = await supabaseAdmin
     .from('hints_used')
@@ -66,6 +72,32 @@ export async function completeSession(args: {
   )
 
   const status = args.status ?? 'completed'
+
+  // Ranking points: awarded once per (user, challenge) — repeating a challenge
+  // or re-submitting the same session must not farm points.
+  let points = session.points ?? 0
+  if (status === 'completed' && session.points === null) {
+    const { data: prior } = await supabaseAdmin
+      .from('sessions')
+      .select('id')
+      .eq('user_id', a.userId)
+      .eq('challenge_id', session.challenge_id)
+      .eq('status', 'completed')
+      .gt('points', 0)
+      .neq('id', args.id)
+      .limit(1)
+      .maybeSingle()
+    points = prior
+      ? 0
+      : challengePoints(session.challenges?.level ?? 'beginner', independence)
+    if (points > 0) {
+      await supabaseAdmin.rpc(
+        'add_points' as never,
+        { p_user: a.userId, p_amount: points } as never,
+      )
+    }
+  }
+
   const base =
     typeof args.durationSeconds === 'number'
       ? {
@@ -76,10 +108,11 @@ export async function completeSession(args: {
       : { status, completed_at: new Date().toISOString() }
   await supabaseAdmin
     .from('sessions')
-    .update({ ...base, independence })
+    .update({ ...base, independence, points })
     .eq('id', args.id)
   revalidatePath('/dashboard')
   revalidatePath('/profile')
+  revalidatePath('/ranking')
 }
 
 export type SessionRow = {
