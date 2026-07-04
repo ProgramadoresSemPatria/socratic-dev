@@ -5,6 +5,6 @@
 export const FREE_WEEKLY_HINTS = 35
 
 // "Resolver pra mim" — the expensive last-resort that reveals the full
-// solution. Costs many hint credits and tanks the independence score.
+// solution. Costs many hint credits and drops independence to zero (see
+// SOLVE_CAP in domain/scoring).
 export const SOLVE_COST = 5
-export const SOLVE_INDEPENDENCE_PENALTY = 40

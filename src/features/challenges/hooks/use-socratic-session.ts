@@ -1,14 +1,11 @@
 'use client'
 
+import { SOLVE_CAP } from '@/domain/scoring'
 import { useUser } from '@/features/auth/hooks/use-user'
 import {
   buyHints as buyHintsAction,
   getHintBalance,
 } from '@/features/hints/actions'
-import {
-  SOLVE_COST,
-  SOLVE_INDEPENDENCE_PENALTY,
-} from '@/features/hints/constants'
 import type { ChatMsg } from '@/lib/ai/types'
 import { track } from '@/lib/analytics'
 import { getAccessToken } from '@/lib/api/client'
@@ -137,7 +134,7 @@ export function useSocraticSession<TWork>(opts: {
   }
 
   function spendSolve() {
-    spend(SOLVE_COST, SOLVE_INDEPENDENCE_PENALTY)
+    setIndependence(SOLVE_CAP)
     track('solve_used', { challenge_id: challenge?.id })
   }
 
