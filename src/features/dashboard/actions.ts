@@ -1,5 +1,6 @@
 'use server'
 
+import { computeIndependence } from '@/domain/scoring'
 import { authActionUser } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import type { Stats } from './types'
@@ -61,11 +62,13 @@ export async function getDashboardStats(
   const [sessionsResult, hintsResult, weekResult] = await Promise.all([
     supabaseAdmin
       .from('sessions')
-      .select('id, status, started_at, completed_at, challenge_id')
+      .select(
+        'id, status, started_at, completed_at, challenge_id, independence',
+      )
       .eq('user_id', userId),
     supabaseAdmin
       .from('hints_used')
-      .select('hint_level, used_at, session_id')
+      .select('hint_level, used_at, session_id, is_solve')
       .eq('user_id', userId),
     supabaseAdmin
       .from('sessions')
@@ -84,17 +87,32 @@ export async function getDashboardStats(
   const weekSessions = weekResult.data
 
   const completed = sessions.filter((s) => s.status === 'completed')
-  const totalHints = hints.length
+
+  const realHints = hints.filter((h) => !h.is_solve)
+  const totalHints = realHints.length
   const avgHintsPerSession =
     completed.length > 0
       ? Math.round((totalHints / completed.length) * 10) / 10
       : 0
 
-  const hintPenalty = hints.reduce((sum, h) => sum + h.hint_level * 4, 0)
-  const independenceScore = Math.max(
-    0,
-    100 - Math.round(hintPenalty / Math.max(completed.length, 1)),
-  )
+  const hintsBySession = new Map<string, typeof hints>()
+  for (const h of hints) {
+    const list = hintsBySession.get(h.session_id) ?? []
+    list.push(h)
+    hintsBySession.set(h.session_id, list)
+  }
+  const independenceScore =
+    completed.length > 0
+      ? Math.round(
+          completed.reduce(
+            (sum, s) =>
+              sum +
+              (s.independence ??
+                computeIndependence(hintsBySession.get(s.id) ?? [])),
+            0,
+          ) / completed.length,
+        )
+      : 100
 
   const streak = calcStreak(completed.map((s) => s.started_at))
   const weekProgress = buildWeekProgress(weekSessions.map((s) => s.started_at))
