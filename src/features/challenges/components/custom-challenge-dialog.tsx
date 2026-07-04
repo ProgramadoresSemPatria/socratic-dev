@@ -2,11 +2,19 @@
 
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { Code2, Loader2, Network, PenLine, Sparkles, X } from 'lucide-react'
+import {
+  Code2,
+  Lightbulb,
+  Loader2,
+  Network,
+  PenLine,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
-import { generateChallenge } from '../actions'
+import { generateChallenge, getTrainingRecommendation } from '../actions'
 import { getAccessToken } from '@/lib/api/client'
 
 type Kind = 'code' | 'design'
@@ -49,6 +57,9 @@ const copy = {
       'E.g. I want to practice stream aggregation with time windows in JS, handling out-of-order events.',
     promptHelp:
       'At least 10 characters. The more specific, the more targeted the challenge.',
+    recommendation: 'Recommendation',
+    recommendationOptional: 'optional',
+    useRecommendation: 'Use this suggestion',
     cancel: 'Cancel',
     generate: 'Generate my challenge',
   },
@@ -79,6 +90,9 @@ const copy = {
       'Ex.: quero praticar agregação de stream com janelas de tempo em JS, lidando com eventos fora de ordem.',
     promptHelp:
       'Mínimo 10 caracteres. Quanto mais específico, mais direcionado o desafio.',
+    recommendation: 'Recomendação',
+    recommendationOptional: 'opcional',
+    useRecommendation: 'Usar esta sugestão',
     cancel: 'Cancelar',
     generate: 'Gerar meu desafio',
   },
@@ -101,6 +115,40 @@ export function CustomChallengeDialog({
   const [prompt, setPrompt] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [recommendation, setRecommendation] = React.useState<string | null>(
+    null,
+  )
+  const [recommendationLoading, setRecommendationLoading] =
+    React.useState(false)
+
+  // Fetches once per dialog open, with the selections at open time. It's a
+  // nudge, not a requirement — on failure it just stays hidden.
+  React.useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setRecommendation(null)
+    setRecommendationLoading(true)
+    ;(async () => {
+      try {
+        const token = await getAccessToken()
+        const result = await getTrainingRecommendation({
+          token,
+          kind,
+          stack: kind === 'design' ? undefined : stack,
+          level,
+        })
+        if (!cancelled && 'text' in result) setRecommendation(result.text)
+      } catch {
+        // silent — the tip is optional
+      } finally {
+        if (!cancelled) setRecommendationLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only on open, not on every chip change
+  }, [open])
 
   async function submit() {
     if (submitting || prompt.trim().length < 10) return
@@ -265,6 +313,41 @@ export function CustomChallengeDialog({
                     <p className='mt-1.5 text-[12px] text-muted-foreground'>
                       {t.promptHelp}
                     </p>
+
+                    {(recommendationLoading || recommendation) && (
+                      <div className='mt-3 rounded-xl border border-primary/20 bg-primary/[0.05] px-4 py-3'>
+                        <div className='mb-1.5 flex items-center gap-1.5 font-mono text-[10px] tracking-wider text-primary uppercase'>
+                          <Lightbulb className='size-3' />
+                          <span>{t.recommendation}</span>
+                          <span className='text-muted-foreground'>
+                            · {t.recommendationOptional}
+                          </span>
+                        </div>
+                        {recommendationLoading ? (
+                          <div className='space-y-1.5'>
+                            <div className='h-3.5 w-full animate-pulse rounded bg-muted' />
+                            <div className='h-3.5 w-3/5 animate-pulse rounded bg-muted' />
+                          </div>
+                        ) : (
+                          <>
+                            <p className='text-[13px] leading-relaxed text-ink'>
+                              {recommendation}
+                            </p>
+                            <button
+                              type='button'
+                              onClick={() =>
+                                setPrompt(
+                                  (recommendation ?? '').slice(0, MAX_PROMPT),
+                                )
+                              }
+                              className='mt-2 cursor-pointer text-[12px] font-medium text-primary hover:underline'
+                            >
+                              {t.useRecommendation}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {error && (

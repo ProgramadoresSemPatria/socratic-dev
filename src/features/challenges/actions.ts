@@ -1,9 +1,11 @@
 'use server'
 
+import { askClaude } from '@/lib/ai/client'
 import {
   generateChallenge as runGenerate,
   type GenLevel,
 } from '@/lib/ai/generate-challenge'
+import { recommendSystem } from '@/lib/ai/prompts/recommend'
 import { authActionUser } from '@/lib/api/guard'
 import { rateLimit } from '@/lib/api/guard'
 import { getLocale } from '@/lib/i18n/server'
@@ -75,6 +77,96 @@ export async function listSessionsForUser(
     .eq('user_id', a.userId)
     .order('started_at', { ascending: false })
   return (data ?? []) as unknown as SessionRow[]
+}
+
+export async function getTrainingRecommendation(input: {
+  token: string
+  kind: 'code' | 'design'
+  stack?: string
+  level: GenLevel
+}): Promise<{ text: string } | { error: string }> {
+  const a = await authActionUser(input.token)
+  if ('error' in a) return { error: 'Não autenticado.' }
+  if (!rateLimit(`recommend:${a.userId}`, 10, 60_000)) {
+    return { error: 'Muitas requisições. Aguarde um momento.' }
+  }
+
+  try {
+    const [profileR, sessionsR, hintsR, communityR] = await Promise.all([
+      supabaseAdmin
+        .from('profiles')
+        .select('total_challenges_completed, total_hints_used')
+        .eq('id', a.userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('sessions')
+        .select('status, challenges(title, stack, level)')
+        .eq('user_id', a.userId)
+        .order('started_at', { ascending: false })
+        .limit(10),
+      supabaseAdmin
+        .from('hints_used')
+        .select('hint_level')
+        .eq('user_id', a.userId)
+        .order('used_at', { ascending: false })
+        .limit(30),
+      supabaseAdmin
+        .from('challenges')
+        .select('title')
+        .eq('kind', input.kind)
+        .eq('level', input.level)
+        .order('created_at', { ascending: false })
+        .limit(8),
+    ])
+
+    const prof = profileR.data
+    const recent = (sessionsR.data ?? []) as unknown as {
+      status: string
+      challenges: { title: string; stack: string; level: string } | null
+    }[]
+    const recentTitles = recent
+      .map((s) =>
+        s.challenges
+          ? `${s.challenges.title} (${s.status === 'completed' ? 'completado' : s.status})`
+          : null,
+      )
+      .filter(Boolean)
+      .slice(0, 8) as string[]
+    const hintLevels = (hintsR.data ?? []).map((h) => h.hint_level)
+    const communityTitles = (communityR.data ?? []).map((c) => c.title)
+
+    const user = [
+      `Trilha: ${input.kind === 'design' ? 'system design (arquitetura)' : 'código'}`,
+      input.stack ? `Linguagem: ${input.stack}` : '',
+      `Nível: ${input.level}`,
+      `Desafios completados na vida: ${prof?.total_challenges_completed ?? 0}`,
+      `Hints usados na vida: ${prof?.total_hints_used ?? 0}`,
+      recentTitles.length
+        ? `Desafios recentes do aluno:\n- ${recentTitles.join('\n- ')}`
+        : 'O aluno ainda não fez nenhum desafio.',
+      hintLevels.length
+        ? `Níveis dos hints recentes (1=leve, 3=quase resposta): ${hintLevels.join(', ')}`
+        : '',
+      communityTitles.length
+        ? `Temas que outros alunos desse nível estão treinando:\n- ${communityTitles.join('\n- ')}`
+        : '',
+      '',
+      'Gere a recomendação do que treinar agora.',
+    ]
+      .filter(Boolean)
+      .join('\n')
+
+    const text = await askClaude({
+      system: recommendSystem(await getLocale()),
+      user,
+      maxTokens: 300,
+      effort: 'low',
+    })
+    if (!text.trim()) return { error: 'Sem recomendação.' }
+    return { text: text.trim() }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Erro inesperado' }
+  }
 }
 
 async function doGenerate(input: {
