@@ -88,11 +88,23 @@ export async function getDashboardStats(
 
   const completed = sessions.filter((s) => s.status === 'completed')
 
+  // Count distinct challenges, not raw completed rows: the same challenge can
+  // have several completed sessions. Keep the most recent one per challenge.
+  const completedByChallenge = new Map<string, (typeof completed)[number]>()
+  for (const s of completed) {
+    const prev = completedByChallenge.get(s.challenge_id)
+    if (!prev || s.started_at > prev.started_at) {
+      completedByChallenge.set(s.challenge_id, s)
+    }
+  }
+  const uniqueCompleted = [...completedByChallenge.values()]
+  const completedCount = uniqueCompleted.length
+
   const realHints = hints.filter((h) => !h.is_solve)
   const totalHints = realHints.length
   const avgHintsPerSession =
-    completed.length > 0
-      ? Math.round((totalHints / completed.length) * 10) / 10
+    completedCount > 0
+      ? Math.round((totalHints / completedCount) * 10) / 10
       : 0
 
   const hintsBySession = new Map<string, typeof hints>()
@@ -102,15 +114,15 @@ export async function getDashboardStats(
     hintsBySession.set(h.session_id, list)
   }
   const independenceScore =
-    completed.length > 0
+    completedCount > 0
       ? Math.round(
-          completed.reduce(
+          uniqueCompleted.reduce(
             (sum, s) =>
               sum +
               (s.independence ??
                 computeIndependence(hintsBySession.get(s.id) ?? [])),
             0,
-          ) / completed.length,
+          ) / completedCount,
         )
       : 100
 
@@ -118,7 +130,7 @@ export async function getDashboardStats(
   const weekProgress = buildWeekProgress(weekSessions.map((s) => s.started_at))
 
   return {
-    total_completed: completed.length,
+    total_completed: completedCount,
     total_hints: totalHints,
     avg_hints_per_session: avgHintsPerSession,
     independence_score: independenceScore,
