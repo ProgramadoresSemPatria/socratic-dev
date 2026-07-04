@@ -6,6 +6,7 @@ import {
   type GenLevel,
 } from '@/lib/ai/generate-challenge'
 import { recommendSystem } from '@/lib/ai/prompts/recommend'
+import { computeIndependence } from '@/domain/scoring'
 import { authActionUser } from '@/lib/api/guard'
 import { rateLimit } from '@/lib/api/guard'
 import { getLocale } from '@/lib/i18n/server'
@@ -42,8 +43,16 @@ export async function completeSession(args: {
     .maybeSingle()
   if (!own || (own as { user_id: string }).user_id !== a.userId) return
 
+  const { data: hints } = await supabaseAdmin
+    .from('hints_used')
+    .select('hint_level, is_solve')
+    .eq('session_id', args.id)
+  const independence = computeIndependence(
+    (hints ?? []) as { hint_level: number; is_solve: boolean }[],
+  )
+
   const status = args.status ?? 'completed'
-  const update =
+  const base =
     typeof args.durationSeconds === 'number'
       ? {
           status,
@@ -51,7 +60,10 @@ export async function completeSession(args: {
           duration_seconds: Math.max(0, Math.floor(args.durationSeconds)),
         }
       : { status, completed_at: new Date().toISOString() }
-  await supabaseAdmin.from('sessions').update(update).eq('id', args.id)
+  await supabaseAdmin
+    .from('sessions')
+    .update({ ...base, independence })
+    .eq('id', args.id)
   revalidatePath('/dashboard')
   revalidatePath('/profile')
 }
