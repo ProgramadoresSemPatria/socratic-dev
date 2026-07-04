@@ -168,30 +168,36 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          display_name: string | null
           email: string
           id: string
           preferred_level: string | null
           preferred_stack: string | null
           total_challenges_completed: number
           total_hints_used: number
+          total_points: number
         }
         Insert: {
           created_at?: string
+          display_name?: string | null
           email: string
           id: string
           preferred_level?: string | null
           preferred_stack?: string | null
           total_challenges_completed?: number
           total_hints_used?: number
+          total_points?: number
         }
         Update: {
           created_at?: string
+          display_name?: string | null
           email?: string
           id?: string
           preferred_level?: string | null
           preferred_stack?: string | null
           total_challenges_completed?: number
           total_hints_used?: number
+          total_points?: number
         }
         Relationships: []
       }
@@ -202,6 +208,7 @@ export type Database = {
           duration_seconds: number | null
           id: string
           independence: number | null
+          points: number | null
           started_at: string
           status: string
           user_id: string
@@ -212,6 +219,7 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           independence?: number | null
+          points?: number | null
           started_at?: string
           status?: string
           user_id: string
@@ -222,6 +230,7 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           independence?: number | null
+          points?: number | null
           started_at?: string
           status?: string
           user_id?: string
