@@ -234,7 +234,7 @@ export async function POST(req: Request) {
         json.teach,
         new Set(nodes.map((n) => n.id)),
       )
-      const remaining = await consumeHints(userId, sessionId, 3, SOLVE_COST)
+      const remaining = await consumeHints(userId, sessionId, 3, SOLVE_COST, true)
       return Response.json({ nodes, edges, teach, remaining })
     }
 
@@ -254,7 +254,7 @@ export async function POST(req: Request) {
         teach = undefined
       }
     }
-    const remaining = await consumeHints(userId, sessionId, 3, SOLVE_COST)
+    const remaining = await consumeHints(userId, sessionId, 3, SOLVE_COST, true)
     return Response.json({ code, teach, remaining })
   } catch (e) {
     return aiErrorResponse(e)

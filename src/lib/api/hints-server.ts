@@ -58,6 +58,7 @@ export async function consumeHints(
   sessionId: string,
   level: 1 | 2 | 3,
   cost: number,
+  isSolve = false,
 ): Promise<number | null> {
   const b = await getBalance(userId)
   if (b.remaining < cost) return null
@@ -77,6 +78,7 @@ export async function consumeHints(
     session_id: sessionId,
     user_id: userId,
     hint_level: level,
+    is_solve: isSolve,
   }))
   const { error } = await supabaseAdmin.from('hints_used').insert(rows)
   if (error) return null

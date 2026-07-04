@@ -50,6 +50,7 @@ export async function POST(req: Request) {
         sessionId,
         (level as 1 | 2 | 3),
         cost,
+        mode === 'solve',
       )
       if (r === null) return jsonError('Limite de hints atingido.', 429)
       remaining = r
