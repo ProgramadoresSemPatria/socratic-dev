@@ -529,12 +529,16 @@ function localDateKey(input: Date | string): string {
 
 function ActivityHeatmap({ sessions }: { sessions: SessionRow[] }) {
   const t = useT(copy)
-  const counts: Record<string, number> = {}
+  // Count distinct challenges per day, not raw sessions — the same challenge
+  // opened more than once in a day is still one challenge.
+  const perDay: Record<string, Set<string>> = {}
   for (const s of sessions) {
     if (!s.started_at) continue
     const key = localDateKey(s.started_at)
-    counts[key] = (counts[key] ?? 0) + 1
+    ;(perDay[key] ??= new Set()).add(s.challenge_id)
   }
+  const counts: Record<string, number> = {}
+  for (const key in perDay) counts[key] = perDay[key].size
   const max = Math.max(1, ...Object.values(counts))
 
   const today = new Date()
