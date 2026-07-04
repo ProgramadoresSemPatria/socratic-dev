@@ -1,5 +1,6 @@
 import { Logo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
+import { computeIndependence } from '@/domain/scoring'
 import { FormattedText } from '@/features/challenges/components/formatted-text'
 import { getLocale } from '@/lib/i18n/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
@@ -120,16 +121,11 @@ function formatTime(s: number | null): string {
   return `${m}m ${sec.toString().padStart(2, '0')}s`
 }
 
-function calcIndependence(hints: { hint_level: number }[]): number {
-  const penalty = hints.reduce((sum, h) => sum + h.hint_level * 4, 0)
-  return Math.max(0, 100 - penalty)
-}
-
 async function fetchReplay(id: string) {
   const session = await supabaseAdmin
     .from('sessions')
     .select(
-      'id, status, started_at, completed_at, duration_seconds, challenge_id, user_id, challenges(*)',
+      'id, status, started_at, completed_at, duration_seconds, independence, challenge_id, user_id, challenges(*)',
     )
     .eq('id', id)
     .maybeSingle()
@@ -145,7 +141,7 @@ async function fetchReplay(id: string) {
 
   const hints = await supabaseAdmin
     .from('hints_used')
-    .select('hint_level, used_at')
+    .select('hint_level, used_at, is_solve')
     .eq('session_id', id)
 
   return {
@@ -155,8 +151,19 @@ async function fetchReplay(id: string) {
       ? T
       : unknown,
     submission: submission.data,
-    hints: (hints.data ?? []) as { hint_level: number; used_at: string }[],
+    hints: (hints.data ?? []) as {
+      hint_level: number
+      used_at: string
+      is_solve: boolean
+    }[],
   }
+}
+
+function replayIndependence(
+  stored: number | null | undefined,
+  hints: { hint_level: number; is_solve: boolean }[],
+): number {
+  return stored ?? computeIndependence(hints)
 }
 
 export async function generateMetadata(props: {
@@ -168,9 +175,10 @@ export async function generateMetadata(props: {
   const session = data.session as {
     challenges: { title?: string } | null
     status: string
+    independence: number | null
   }
   const title = session.challenges?.title ?? 'Challenge'
-  const score = calcIndependence(data.hints)
+  const score = replayIndependence(session.independence, data.hints)
   return {
     title: `${title} · ${score}% independent · socratic.dev`,
     description: `Public session: ${title} solved with ${score}% independence. No cheating, no AI spitting out the answer.`,
@@ -197,6 +205,7 @@ export default async function ReplayPage(props: {
     started_at: string
     completed_at: string | null
     duration_seconds: number | null
+    independence: number | null
     challenges: {
       title: string
       description: string
@@ -211,7 +220,8 @@ export default async function ReplayPage(props: {
   if (!c) notFound()
 
   const { persona, body } = parsePersona(c.client_briefing)
-  const independence = calcIndependence(data.hints)
+  const realHints = data.hints.filter((h) => !h.is_solve)
+  const independence = replayIndependence(session.independence, data.hints)
   const passed = session.status === 'completed'
   const isDesign = c.kind === 'design'
   const date = new Date(session.completed_at ?? session.started_at)
@@ -274,7 +284,7 @@ export default async function ReplayPage(props: {
               accent='mint'
               hint={t.independenceHint}
             />
-            <Metric label={t.hintsUsed} value={String(data.hints.length)} />
+            <Metric label={t.hintsUsed} value={String(realHints.length)} />
             <Metric
               label={t.time}
               value={formatTime(session.duration_seconds)}
@@ -311,20 +321,20 @@ export default async function ReplayPage(props: {
             </p>
           </Section>
 
-          {data.hints.length > 0 && (
+          {realHints.length > 0 && (
             <Section
               title={t.howHints}
               icon={<Lightbulb className='size-3.5' strokeWidth={1.5} />}
             >
               <div className='grid grid-cols-3'>
                 {([1, 2, 3] as const).map((lvl) => {
-                  const n = data.hints.filter((h) => h.hint_level === lvl).length
+                  const n = realHints.filter((h) => h.hint_level === lvl).length
                   return (
                     <div
                       key={lvl}
                       className='border-l border-border px-5 first:border-l-0 first:pl-0 sm:px-8'
                     >
-                      <div className='font-heading text-[32px] leading-none font-light tabular-nums text-ink sm:text-[40px]'>
+                      <div className='font-heading text-[32px] leading-none font-light text-ink tabular-nums sm:text-[40px]'>
                         {n}
                       </div>
                       <div className='mt-3 font-mono text-[11px] tracking-wider text-muted-foreground uppercase'>
@@ -354,7 +364,9 @@ export default async function ReplayPage(props: {
           {data.submission?.review_response && (
             <Section
               title={t.socraticReview}
-              icon={<GitPullRequestArrow className='size-3.5' strokeWidth={1.5} />}
+              icon={
+                <GitPullRequestArrow className='size-3.5' strokeWidth={1.5} />
+              }
             >
               <div className='type-body'>
                 <FormattedText text={data.submission.review_response} />
@@ -362,7 +374,7 @@ export default async function ReplayPage(props: {
             </Section>
           )}
 
-          <div className='from-pastel-greige/50 via-pastel-mist/40 to-pastel-lavender/60 mt-16 overflow-hidden rounded-lg bg-gradient-to-b px-6 py-14 text-center sm:px-10 sm:py-16'>
+          <div className='mt-16 overflow-hidden rounded-lg bg-gradient-to-b from-pastel-greige/50 via-pastel-mist/40 to-pastel-lavender/60 px-6 py-14 text-center sm:px-10 sm:py-16'>
             <p className='eyebrow'>{t.proofTitle}</p>
             <h2 className='type-h3 mt-4'>
               <span className='font-serif italic'>{t.proofBodyStrong}</span>
@@ -434,7 +446,7 @@ function Metric({
       <div className='flex items-baseline'>
         <span
           className={cn(
-            'font-heading text-[32px] leading-none font-light tracking-[-0.03em] tabular-nums text-ink sm:text-[52px]',
+            'font-heading text-[32px] leading-none font-light tracking-[-0.03em] text-ink tabular-nums sm:text-[52px]',
             accent === 'mint' && 'text-mint',
             accent === 'primary' && 'text-primary',
           )}
