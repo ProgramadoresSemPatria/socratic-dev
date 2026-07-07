@@ -73,29 +73,20 @@ export async function completeSession(args: {
 
   const status = args.status ?? 'completed'
 
-  // Ranking points: awarded once per (user, challenge) — repeating a challenge
-  // or re-submitting the same session must not farm points.
-  let points = session.points ?? 0
   if (status === 'completed' && session.points === null) {
-    const { data: prior } = await supabaseAdmin
-      .from('sessions')
-      .select('id')
-      .eq('user_id', a.userId)
-      .eq('challenge_id', session.challenge_id)
-      .eq('status', 'completed')
-      .gt('points', 0)
-      .neq('id', args.id)
-      .limit(1)
-      .maybeSingle()
-    points = prior
-      ? 0
-      : challengePoints(session.challenges?.level ?? 'beginner', independence)
-    if (points > 0) {
-      await supabaseAdmin.rpc(
-        'add_points' as never,
-        { p_user: a.userId, p_amount: points } as never,
-      )
-    }
+    const candidate = challengePoints(
+      session.challenges?.level ?? 'beginner',
+      independence,
+    )
+    await supabaseAdmin.rpc(
+      'award_session_points' as never,
+      {
+        p_user: a.userId,
+        p_session: args.id,
+        p_challenge: session.challenge_id,
+        p_points: candidate,
+      } as never,
+    )
   }
 
   const base =
@@ -108,7 +99,7 @@ export async function completeSession(args: {
       : { status, completed_at: new Date().toISOString() }
   await supabaseAdmin
     .from('sessions')
-    .update({ ...base, independence, points })
+    .update({ ...base, independence })
     .eq('id', args.id)
   revalidatePath('/dashboard')
   revalidatePath('/profile')

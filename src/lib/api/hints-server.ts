@@ -29,12 +29,12 @@ function currentPeriod(): { start: Date; resetsAt: Date } {
 export async function getBalance(userId: string): Promise<HintBalance> {
   const { start, resetsAt } = currentPeriod()
 
-  const { data: used } = await supabaseAdmin
+  const { count } = await supabaseAdmin
     .from('hints_used')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .gte('used_at', start.toISOString())
-  const usedThisWeek = used?.length ?? 0
+  const usedThisWeek = count ?? 0
 
   const { data: prof } = await supabaseAdmin
     .from('profiles')
@@ -60,30 +60,21 @@ export async function consumeHints(
   cost: number,
   isSolve = false,
 ): Promise<number | null> {
-  const b = await getBalance(userId)
-  if (b.remaining < cost) return null
-
-  const freeRemaining = Math.max(0, b.freeLimit - b.usedThisWeek)
-  const fromBonus = Math.max(0, cost - freeRemaining)
-
-  if (fromBonus > 0) {
-    const { data, error } = await supabaseAdmin.rpc(
-      'consume_bonus_hints' as never,
-      { p_user: userId, p_amount: fromBonus } as never,
-    )
-    if (error || data === null) return null
-  }
-
-  const rows = Array.from({ length: cost }, () => ({
-    session_id: sessionId,
-    user_id: userId,
-    hint_level: level,
-    is_solve: isSolve,
-  }))
-  const { error } = await supabaseAdmin.from('hints_used').insert(rows)
-  if (error) return null
-
-  return b.remaining - cost
+  const { start } = currentPeriod()
+  const { data, error } = await supabaseAdmin.rpc(
+    'consume_hints' as never,
+    {
+      p_user: userId,
+      p_session: sessionId,
+      p_level: level,
+      p_cost: cost,
+      p_is_solve: isSolve,
+      p_free_limit: FREE_WEEKLY_HINTS,
+      p_week_start: start.toISOString(),
+    } as never,
+  )
+  if (error || data === null || data === undefined) return null
+  return data as number
 }
 
 export async function addBonus(
