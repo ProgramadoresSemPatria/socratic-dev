@@ -16,3 +16,10 @@ export const HINT_PACK = {
   amountCents: 990,
   currency: 'brl',
 } as const
+
+// Streak reward: bonus hints on every Nth consecutive day (7, 14, 21…),
+// awarded once per day via the award_streak_hints RPC (migration 018).
+export const STREAK_REWARD = {
+  everyDays: 7,
+  hints: 2,
+} as const

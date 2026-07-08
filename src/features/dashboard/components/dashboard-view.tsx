@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { stackById } from '@/domain/stacks'
 import {
+  getDailyChallenge,
   getNextChallenge,
   listSessionsForUser,
+  type DailyChallenge,
   type SessionRow,
 } from '@/features/challenges/actions'
 import { CustomChallengeDialog } from '@/features/challenges/components/custom-challenge-dialog'
@@ -21,6 +23,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Flame,
   Network,
   PenLine,
   Sparkles,
@@ -83,6 +86,7 @@ const copy = {
     quote:
       'What comes out of your head is worth a thousand times more than what comes out of mine.',
     quoteBy: 'Socratic tutor, just now',
+    daily: 'Daily challenge',
   },
   pt: {
     welcome: 'Bem-vindo de volta',
@@ -128,6 +132,7 @@ const copy = {
     quote:
       'O que sai da sua cabeça vale mil vezes mais que o que sai da minha.',
     quoteBy: 'Tutor Socrático, agora há pouco',
+    daily: 'Desafio do dia',
   },
 }
 
@@ -153,6 +158,13 @@ export function DashboardView({ user }: { user: User }) {
   const [genDesign, setGenDesign] = React.useState(false)
   const [genCode, setGenCode] = React.useState(false)
   const [customOpen, setCustomOpen] = React.useState(false)
+  const [daily, setDaily] = React.useState<DailyChallenge | null>(null)
+
+  React.useEffect(() => {
+    getDailyChallenge()
+      .then((d) => setDaily(d))
+      .catch(() => {})
+  }, [])
 
   React.useEffect(() => {
     if (!startError) return
@@ -340,6 +352,36 @@ export function DashboardView({ user }: { user: User }) {
               </div>
             </div>
           </motion.section>
+
+          {daily && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: EASE }}
+              className='mb-12'
+            >
+              <Link
+                href={`${daily.kind === 'design' ? '/design' : '/challenge'}?id=${daily.id}`}
+                className='group flex items-center gap-3 rounded-lg border border-border bg-card px-5 py-4 transition-colors duration-200 hover:bg-secondary'
+              >
+                <Flame
+                  className='size-4 shrink-0 text-orange-500'
+                  strokeWidth={1.5}
+                />
+                <span className='font-mono text-[11px] tracking-wider text-primary uppercase'>
+                  {t.daily}
+                </span>
+                <span className='min-w-0 truncate text-sm font-medium text-ink'>
+                  {daily.title}
+                </span>
+                <span className='ml-auto hidden font-mono text-[11px] text-muted-foreground uppercase sm:block'>
+                  {daily.kind === 'design' ? 'system design' : daily.stack} ·{' '}
+                  {daily.level}
+                </span>
+                <ArrowRight className='size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5' />
+              </Link>
+            </motion.div>
+          )}
 
           {!loaded ? (
             <DashboardSkeleton />

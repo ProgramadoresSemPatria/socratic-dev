@@ -123,6 +123,38 @@ export type Database = {
           },
         ]
       }
+      streak_rewards: {
+        Row: {
+          awarded_on: string
+          created_at: string
+          hints: number
+          streak_days: number
+          user_id: string
+        }
+        Insert: {
+          awarded_on: string
+          created_at?: string
+          hints: number
+          streak_days: number
+          user_id: string
+        }
+        Update: {
+          awarded_on?: string
+          created_at?: string
+          hints?: number
+          streak_days?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streak_rewards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hint_purchases: {
         Row: {
           amount_cents: number | null

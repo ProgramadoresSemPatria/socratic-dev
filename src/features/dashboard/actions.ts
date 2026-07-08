@@ -3,6 +3,7 @@
 import { computeIndependence } from '@/domain/scoring'
 import { authActionUser } from '@/lib/api/guard'
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { calcStreak } from './streak'
 import type { Stats } from './types'
 
 function getDateDaysAgo(days: number): string {
@@ -11,30 +12,16 @@ function getDateDaysAgo(days: number): string {
   return d.toISOString()
 }
 
-function getYesterday(): string {
-  const d = new Date()
-  d.setDate(d.getDate() - 1)
-  return d.toISOString().slice(0, 10)
-}
-
-function calcStreak(startedAtDates: string[]): number {
-  if (startedAtDates.length === 0) return 0
-  const days = Array.from(
-    new Set(startedAtDates.map((d) => d.slice(0, 10))),
-  ).sort((a, b) => b.localeCompare(a))
-
-  const today = new Date().toISOString().slice(0, 10)
-  if (days[0] !== today && days[0] !== getYesterday()) return 0
-
-  let streak = 1
-  for (let i = 1; i < days.length; i++) {
-    const prev = new Date(days[i - 1])
-    const curr = new Date(days[i])
-    const diff = (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24)
-    if (diff === 1) streak++
-    else break
-  }
-  return streak
+export async function getStreak(token: string): Promise<number> {
+  const a = await authActionUser(token)
+  if ('error' in a) return 0
+  const { data } = await supabaseAdmin
+    .from('sessions')
+    .select('started_at')
+    .eq('user_id', a.userId)
+    .eq('status', 'completed')
+    .gte('started_at', getDateDaysAgo(120))
+  return calcStreak((data ?? []).map((s) => s.started_at))
 }
 
 function buildWeekProgress(
