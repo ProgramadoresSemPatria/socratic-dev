@@ -1,6 +1,11 @@
 'use client'
 
 import { useUser } from '@/features/auth/hooks/use-user'
+import {
+  getDailyChallenge,
+  type DailyChallenge,
+} from '@/features/challenges/actions'
+import { getStreak } from '@/features/dashboard/actions'
 import { getHintBalance } from '@/features/hints/actions'
 import { HINT_PACK } from '@/features/hints/constants'
 import { getMyRank } from '@/features/ranking/actions'
@@ -10,6 +15,7 @@ import { cn } from '@/lib/utils'
 import {
   ChevronDown,
   Code2,
+  Flame,
   Lightbulb,
   Menu,
   Network,
@@ -54,6 +60,8 @@ const copy = {
     trackDesignQ: 'Will it survive a million users?',
     resume: 'Pick up where you left off',
     explore: 'Browse the library',
+    daily: 'Daily challenge',
+    streakTitle: 'day streak — every 7th day pays bonus hints',
   },
   pt: {
     library: 'Biblioteca',
@@ -79,6 +87,8 @@ const copy = {
     trackDesignQ: 'Aguenta um milhão de usuários?',
     resume: 'Continue de onde parou',
     explore: 'Explore a biblioteca',
+    daily: 'Desafio do dia',
+    streakTitle: 'dias seguidos — a cada 7 dias você ganha hints bônus',
   },
 } as const
 
@@ -143,17 +153,51 @@ function useRank(enabled: boolean) {
   return position
 }
 
+function useStreak(enabled: boolean) {
+  const [streak, setStreak] = React.useState<number>(0)
+
+  React.useEffect(() => {
+    if (!enabled) return
+    let cancelled = false
+    getAccessToken()
+      .then((tk) => getStreak(tk))
+      .then((s) => {
+        if (!cancelled) setStreak(s)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [enabled])
+
+  return streak
+}
+
 function StatusCluster({
   position,
   hints,
+  streak,
 }: {
   position: number | null
   hints: Hints
+  streak: number
 }) {
   const t = useT(copy)
-  if (position === null && hints.remaining === null) return null
+  if (position === null && hints.remaining === null && streak <= 0) return null
   return (
     <div className='border-border bg-background hidden h-9 items-stretch overflow-hidden rounded-full border sm:inline-flex'>
+      {streak > 0 && (
+        <span
+          title={`${streak} ${t.streakTitle}`}
+          className='text-muted-foreground flex items-center gap-1 pr-2.5 pl-3'
+        >
+          <Flame className='size-3.5 text-orange-500' strokeWidth={1.5} />
+          <span className='font-mono text-[12px] tabular-nums'>{streak}</span>
+        </span>
+      )}
+      {streak > 0 && (position !== null || hints.remaining !== null) && (
+        <span aria-hidden className='bg-border my-2 w-px' />
+      )}
       {position !== null && (
         <Link
           href='/ranking'
@@ -202,8 +246,18 @@ function StatusCluster({
 function TrainMenu({ loggedIn }: { loggedIn: boolean }) {
   const t = useT(copy)
   const [open, setOpen] = React.useState(false)
+  const [daily, setDaily] = React.useState<DailyChallenge | null>(null)
+  const dailyFetched = React.useRef(false)
   const ref = React.useRef<HTMLDivElement>(null)
   const closeTimer = React.useRef<number | null>(null)
+
+  React.useEffect(() => {
+    if (!open || dailyFetched.current) return
+    dailyFetched.current = true
+    getDailyChallenge()
+      .then((d) => setDaily(d))
+      .catch(() => {})
+  }, [open])
 
   const cancelClose = React.useCallback(() => {
     if (closeTimer.current !== null) {
@@ -316,6 +370,25 @@ function TrainMenu({ loggedIn }: { loggedIn: boolean }) {
                 </Link>
               ))}
             </div>
+            {daily && (
+              <Link
+                href={
+                  loggedIn
+                    ? `${daily.kind === 'design' ? '/design' : '/challenge'}?id=${daily.id}`
+                    : '/onboarding'
+                }
+                onClick={() => setOpen(false)}
+                className='border-border hover:bg-secondary flex items-center gap-2 border-t px-5 py-3 transition-colors duration-200'
+              >
+                <Flame className='size-3.5 shrink-0 text-orange-500' strokeWidth={1.5} />
+                <span className='text-primary font-mono text-[11px] uppercase'>
+                  {t.daily}
+                </span>
+                <span className='text-ink truncate text-[13px] font-medium'>
+                  {daily.title}
+                </span>
+              </Link>
+            )}
             <Link
               href={loggedIn ? '/dashboard' : '/challenges'}
               onClick={() => setOpen(false)}
@@ -497,6 +570,7 @@ export function Navbar() {
   const { user, loading } = useUser()
   const hints = useHints(!loading && !!user)
   const rank = useRank(!loading && !!user)
+  const streak = useStreak(!loading && !!user)
 
   useMotionValueEvent(scrollY, 'change', (v) => {
     setScrolled(v > 12)
@@ -565,7 +639,7 @@ export function Navbar() {
           {!loading && user ? (
             <>
               <NavLink href='/dashboard' label={t.dashboard} />
-              <StatusCluster position={rank} hints={hints} />
+              <StatusCluster position={rank} hints={hints} streak={streak} />
               <Link
                 href='/profile'
                 aria-label={t.profile}

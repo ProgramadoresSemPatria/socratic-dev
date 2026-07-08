@@ -7,12 +7,14 @@ import {
 } from '@/lib/ai/generate-challenge'
 import { recommendSystem } from '@/lib/ai/prompts/recommend'
 import { challengePoints, computeIndependence } from '@/domain/scoring'
+import { calcStreak } from '@/features/dashboard/streak'
+import { STREAK_REWARD } from '@/features/hints/constants'
 import { authActionUser } from '@/lib/api/guard'
 import { rateLimit } from '@/lib/api/guard'
 import { getLocale } from '@/lib/i18n/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 import * as Sentry from '@sentry/nextjs'
-import { revalidatePath, updateTag } from 'next/cache'
+import { revalidatePath, unstable_cache, updateTag } from 'next/cache'
 import type { Challenge } from './types'
 
 export async function startSession(args: {
@@ -102,6 +104,32 @@ export async function completeSession(args: {
     .from('sessions')
     .update({ ...base, independence })
     .eq('id', args.id)
+
+  // Streak reward: every Nth consecutive day pays bonus hints, once per day
+  // (the RPC dedupes on (user, date)).
+  if (status === 'completed') {
+    const since = new Date(Date.now() - 120 * 24 * 3600_000).toISOString()
+    const { data: recent } = await supabaseAdmin
+      .from('sessions')
+      .select('started_at')
+      .eq('user_id', a.userId)
+      .eq('status', 'completed')
+      .gte('started_at', since)
+    const streak = calcStreak((recent ?? []).map((s) => s.started_at))
+    if (streak > 0 && streak % STREAK_REWARD.everyDays === 0) {
+      const { error: streakError } = await supabaseAdmin.rpc(
+        'award_streak_hints' as never,
+        {
+          p_user: a.userId,
+          p_streak: streak,
+          p_hints: STREAK_REWARD.hints,
+          p_awarded_on: new Date().toISOString().slice(0, 10),
+        } as never,
+      )
+      if (streakError) Sentry.captureException(streakError)
+    }
+  }
+
   updateTag('ranking')
   revalidatePath('/dashboard')
   revalidatePath('/profile')
@@ -258,6 +286,39 @@ export async function generateChallenge(input: {
     return { error: 'Muitas requisições. Aguarde um momento.' }
   }
   return doGenerate(input)
+}
+
+export type DailyChallenge = {
+  id: string
+  title: string
+  stack: string
+  level: string
+  kind: string | null
+}
+
+// Same challenge for everyone, rotating deterministically by UTC day. Cached
+// per day — zero AI cost, one bounded query per revalidation.
+const getDailyCached = unstable_cache(
+  async (day: string): Promise<DailyChallenge | null> => {
+    const { count } = await supabaseAdmin
+      .from('challenges')
+      .select('id', { count: 'exact', head: true })
+    if (!count) return null
+    const dayNumber = Math.floor(Date.parse(day) / (24 * 3600_000))
+    const idx = dayNumber % count
+    const { data } = await supabaseAdmin
+      .from('challenges')
+      .select('id, title, stack, level, kind')
+      .order('created_at', { ascending: true })
+      .range(idx, idx)
+    return (data?.[0] as DailyChallenge | undefined) ?? null
+  },
+  ['daily-challenge'],
+  { revalidate: 86_400 },
+)
+
+export async function getDailyChallenge(): Promise<DailyChallenge | null> {
+  return getDailyCached(new Date().toISOString().slice(0, 10))
 }
 
 export async function getNextChallenge(input: {

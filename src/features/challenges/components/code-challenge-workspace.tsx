@@ -104,6 +104,54 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   loading: () => <EditorLoading />,
 })
 
+const REACT_EDITOR_TYPES = `
+declare const React: any
+declare namespace JSX {
+  interface IntrinsicElements { [elemName: string]: any }
+  interface Element {}
+  interface ElementChildrenAttribute { children: {} }
+}
+declare module 'react' {
+  export type ReactNode = any
+  export type CSSProperties = any
+  export type FC<P = any> = (props: P) => any
+  export function useState<T = any>(
+    initial?: T | (() => T),
+  ): [T, (v: T | ((p: T) => T)) => void]
+  export function useEffect(fn: () => any, deps?: any[]): void
+  export function useMemo<T = any>(fn: () => T, deps?: any[]): T
+  export function useCallback<T extends (...a: any[]) => any>(
+    fn: T,
+    deps?: any[],
+  ): T
+  export function useRef<T = any>(initial?: T): { current: T }
+  export function useReducer(...args: any[]): any
+  export function useContext(...args: any[]): any
+  export function createContext(...args: any[]): any
+  const ReactDefault: any
+  export default ReactDefault
+}
+`
+
+type MonacoInstance = Parameters<
+  NonNullable<React.ComponentProps<typeof MonacoEditor>['beforeMount']>
+>[0]
+
+function setupMonaco(monaco: MonacoInstance) {
+  const ts = monaco.languages.typescript
+  ts.typescriptDefaults.setCompilerOptions({
+    jsx: ts.JsxEmit.React,
+    target: ts.ScriptTarget.ES2020,
+    moduleResolution: ts.ModuleResolutionKind.NodeJs,
+    allowNonTsExtensions: true,
+    esModuleInterop: true,
+  })
+  ts.typescriptDefaults.addExtraLib(
+    REACT_EDITOR_TYPES,
+    'file:///node_modules/@types/react/index.d.ts',
+  )
+}
+
 const POST = { method: 'POST', headers: { 'content-type': 'application/json' } }
 
 export function CodeChallengeWorkspace({ user: _user }: { user: User }) {
@@ -485,6 +533,16 @@ export function CodeChallengeWorkspace({ user: _user }: { user: User }) {
             <MonacoEditor
               height='100%'
               language={language === 'js' ? 'javascript' : language === 'py' ? 'python' : 'typescript'}
+              path={
+                language === 'react'
+                  ? 'file:///solucao.tsx'
+                  : language === 'py'
+                    ? 'file:///solucao.py'
+                    : language === 'js'
+                      ? 'file:///solucao.js'
+                      : 'file:///solucao.ts'
+              }
+              beforeMount={setupMonaco}
               value={s.work}
               onChange={(v) => s.setWork(v ?? '')}
               theme={isDark ? 'vs-dark' : 'light'}
