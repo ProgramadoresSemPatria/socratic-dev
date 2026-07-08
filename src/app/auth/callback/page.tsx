@@ -8,8 +8,8 @@ import { Suspense, useEffect } from 'react'
 function CallbackHandler() {
   const router = useRouter()
   const params = useSearchParams()
-  const rawNext = params.get('next') ?? '/onboarding'
-  const next = rawNext.startsWith('/') ? rawNext : '/onboarding'
+  const rawNext = params.get('next') ?? '/dashboard'
+  const next = rawNext.startsWith('/') ? rawNext : '/dashboard'
 
   useEffect(() => {
     const {
@@ -17,7 +17,12 @@ function CallbackHandler() {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         subscription.unsubscribe()
-        router.replace(next)
+        const onboarded = !!(
+          session.user.user_metadata as
+            | { preferred_level?: string }
+            | undefined
+        )?.preferred_level
+        router.replace(onboarded ? next : '/onboarding')
       }
     })
     return () => subscription.unsubscribe()

@@ -129,7 +129,7 @@ function LoginForm() {
       const onboarded = !!(
         data.user?.user_metadata as { preferred_level?: string } | undefined
       )?.preferred_level
-      router.replace(explicitNext || (onboarded ? '/dashboard' : '/onboarding'))
+      router.replace(onboarded ? explicitNext || '/dashboard' : '/onboarding')
     } catch (err) {
       const raw = err instanceof Error ? err.message : t.errors.authFailed
       setFormError(translateAuthError(raw))
@@ -142,7 +142,7 @@ function LoginForm() {
     setLoadingOAuth(true)
     setOauthError(null)
     try {
-      const next = explicitNext || '/onboarding'
+      const next = explicitNext || '/dashboard'
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
