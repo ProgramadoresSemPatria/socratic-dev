@@ -15,12 +15,10 @@ import {
   CheckCircle2,
   Loader2,
   PlayCircle,
-  Sparkles,
   Terminal,
   XCircle,
 } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
-import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import { useSocraticSession } from '../hooks/use-socratic-session'
