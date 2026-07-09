@@ -246,7 +246,7 @@ const copy = {
     designNotePost: ' (serviços, dados, fluxo) num canvas e a IA analisa.',
     trackLabel: 'Trilha',
     levelLabel: 'Nível',
-    designValue: 'Design System',
+    designValue: 'System Design',
     codeValue: 'Código',
     genError: 'A IA não conseguiu gerar o desafio agora. Tente de novo.',
     connError: 'Falha ao falar com a IA. Verifique a conexão e tente de novo.',
