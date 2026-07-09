@@ -6,9 +6,15 @@ import { getHintBalance } from '@/features/hints/actions'
 import type { ChatMsg } from '@/lib/ai/types'
 import { track } from '@/lib/analytics'
 import { apiFetch, getAccessToken } from '@/lib/api/client'
+import { useT } from '@/lib/i18n'
 import * as React from 'react'
 import { completeSession, startSession } from '../actions'
 import { loadDraft, saveDraft } from '../draft'
+
+const copy = {
+  en: { buyFailed: "Couldn't start checkout." },
+  pt: { buyFailed: 'Não foi possível iniciar a compra.' },
+}
 
 export function useSocraticSession<TWork>(opts: {
   challenge: { id: string } | null
@@ -18,6 +24,7 @@ export function useSocraticSession<TWork>(opts: {
 }) {
   const { challenge, initialWork, initialMessages, paused = false } = opts
   const { user, loading: authLoading } = useUser()
+  const t = useT(copy)
 
   const [messages, setMessages] = React.useState<ChatMsg[]>([])
   const [input, setInput] = React.useState('')
@@ -170,8 +177,7 @@ export function useSocraticSession<TWork>(opts: {
         text += decoder.decode(value, { stream: true })
         patchLast(text)
       }
-    } catch {
-    }
+    } catch {}
     if (!text.trim() && opts?.fallback) patchLast(opts.fallback)
     return text
   }
@@ -212,7 +218,7 @@ export function useSocraticSession<TWork>(opts: {
         mock?: boolean
         error?: string
       }
-      if (!res.ok) throw new Error(data.error || 'Não foi possível iniciar a compra.')
+      if (!res.ok) throw new Error(data.error || t.buyFailed)
       if (data.url) {
         track('checkout_started', { challenge_id: challenge?.id })
         window.location.href = data.url
@@ -226,7 +232,7 @@ export function useSocraticSession<TWork>(opts: {
       track('hints_purchased', { remaining: b.remaining })
       setTimeout(() => setBought(false), 2500)
     } catch (e) {
-      setBuyError(e instanceof Error ? e.message : '')
+      setBuyError(e instanceof Error ? e.message : t.buyFailed)
       setTimeout(() => setBuyError(null), 5000)
     } finally {
       buyingRef.current = false
