@@ -155,8 +155,7 @@ export function DashboardView({ user }: { user: User }) {
   const [loadError, setLoadError] = React.useState(false)
   const [reloadKey, setReloadKey] = React.useState(0)
   const [startError, setStartError] = React.useState<string | null>(null)
-  const [genDesign, setGenDesign] = React.useState(false)
-  const [genCode, setGenCode] = React.useState(false)
+  const [pending, setPending] = React.useState<string | null>(null)
   const [customOpen, setCustomOpen] = React.useState(false)
   const [daily, setDaily] = React.useState<DailyChallenge | null | undefined>(
     undefined,
@@ -174,57 +173,50 @@ export function DashboardView({ user }: { user: User }) {
     return () => clearTimeout(id)
   }, [startError])
 
-  async function startDesign() {
-    if (genDesign || !user) return
-    setGenDesign(true)
-    try {
-      const level =
-        (user?.user_metadata?.preferred_level as string | undefined) ??
-        'intermediate'
-      const data = await getNextChallenge({
-        kind: 'design',
-        level: level as 'beginner' | 'intermediate' | 'advanced',
-        token: await getAccessToken(),
-      })
-      if (!('error' in data) && data?.id) router.push(`/design?id=${data.id}`)
-      else {
-        setStartError('error' in data ? data.error : t.startFailed)
-        setGenDesign(false)
-      }
-    } catch {
-      setStartError(t.startFailed)
-      setGenDesign(false)
-    }
-  }
-
-  async function startCode() {
-    if (genCode || !user) return
+  // `id` keys the spinner so each button shows its own pending state. A code
+  // target without a stack means "use whatever the user picked at onboarding".
+  async function startChallenge(
+    id: string,
+    target: { kind: 'code' | 'design'; stack?: string },
+  ) {
+    if (pending || !user) return
     const meta = user.user_metadata as
       | { preferred_stack?: string; preferred_level?: string }
       | undefined
-    if (!meta?.preferred_stack || !meta?.preferred_level) {
-      router.push('/onboarding')
-      return
+    let stack = target.stack
+    if (target.kind === 'code' && !stack) {
+      if (!meta?.preferred_stack || !meta?.preferred_level) {
+        router.push('/onboarding')
+        return
+      }
+      stack = meta.preferred_stack
     }
-    setGenCode(true)
+    setPending(id)
     try {
       const data = await getNextChallenge({
-        kind: 'code',
-        stack: meta.preferred_stack,
-        level: meta.preferred_level as 'beginner' | 'intermediate' | 'advanced',
+        kind: target.kind,
+        stack,
+        level: (meta?.preferred_level ?? 'intermediate') as
+          | 'beginner'
+          | 'intermediate'
+          | 'advanced',
         token: await getAccessToken(),
       })
-      if (!('error' in data) && data?.id)
-        router.push(`/challenge?id=${data.id}`)
-      else {
+      if (!('error' in data) && data?.id) {
+        router.push(
+          `${target.kind === 'design' ? '/design' : '/challenge'}?id=${data.id}`,
+        )
+      } else {
         setStartError('error' in data ? data.error : t.startFailed)
-        setGenCode(false)
+        setPending(null)
       }
     } catch {
       setStartError(t.startFailed)
-      setGenCode(false)
+      setPending(null)
     }
   }
+
+  const startCode = () => startChallenge('code', { kind: 'code' })
 
   React.useEffect(() => {
     if (!user) return
@@ -328,8 +320,8 @@ export function DashboardView({ user }: { user: User }) {
                   <Button
                     variant='outline'
                     size='lg'
-                    onClick={startDesign}
-                    loading={genDesign}
+                    onClick={() => startChallenge('design', { kind: 'design' })}
+                    loading={pending === 'design'}
                   >
                     <Network strokeWidth={1.5} />
                     System Design
@@ -338,7 +330,7 @@ export function DashboardView({ user }: { user: User }) {
                     variant='ink'
                     size='lg'
                     onClick={startCode}
-                    loading={genCode}
+                    loading={pending === 'code'}
                     className='group'
                   >
                     <Sparkles strokeWidth={1.5} />
@@ -443,7 +435,7 @@ export function DashboardView({ user }: { user: User }) {
               <RecentChallenges
                 items={sessions}
                 onNew={startCode}
-                creating={genCode}
+                creating={pending === 'code'}
               />
 
               <motion.figure
