@@ -43,7 +43,7 @@ export function SkillBreakdown({ breakdown }: { breakdown: SkillStat[] }) {
   const t = useT(copy)
 
   return (
-    <div>
+    <div className='lg:pr-12'>
       <p className='eyebrow'>{t.eyebrow}</p>
       <h2 className='type-h4 mt-2'>{t.title}</h2>
 
