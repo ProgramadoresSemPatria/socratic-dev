@@ -329,7 +329,11 @@ export function ProfileView({ user }: { user: User }) {
                     label={t.statCompleted}
                   />
                   <StatCol
-                    value={`${stats?.independence_score ?? 100}%`}
+                    value={
+                      stats && stats.total_completed > 0
+                        ? `${stats.independence_score}%`
+                        : '—'
+                    }
                     label={t.statIndependence}
                   />
                   <StatCol

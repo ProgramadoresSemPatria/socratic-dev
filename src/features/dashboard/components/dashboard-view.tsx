@@ -72,6 +72,9 @@ const copy = {
     scoreEyebrow: 'Current score',
     scoreTitle: 'Total independence',
     scoreCaption: 'how much you solve on your own',
+    scoreEmpty: 'no challenges yet',
+    zeroHeadline:
+      'Your independence score starts with your first solved challenge.',
     historyEyebrow: 'History',
     historyTitle: 'Recent challenges',
     of: 'of',
@@ -121,6 +124,9 @@ const copy = {
     scoreEyebrow: 'Score atual',
     scoreTitle: 'Independência total',
     scoreCaption: 'quanto você resolve sozinho',
+    scoreEmpty: 'nenhum desafio ainda',
+    zeroHeadline:
+      'Seu score de independência começa no seu primeiro desafio resolvido.',
     historyEyebrow: 'Histórico',
     historyTitle: 'Desafios recentes',
     of: 'de',
@@ -260,6 +266,9 @@ export function DashboardView({ user }: { user: User }) {
   }
 
   const score = stats?.independence_score ?? 100
+  // getDashboardStats defaults to 100 when nothing is completed. Showing that as
+  // "100% independent" to someone who has solved nothing inverts the premise.
+  const hasScore = !!stats && stats.total_completed > 0
   const weakest = stats ? weakestSkill(stats.skill_breakdown) : null
 
   return (
@@ -294,14 +303,18 @@ export function DashboardView({ user }: { user: User }) {
                   <h1 className='type-h2 text-balance'>{t.startPrompt}</h1>
                 ) : (
                   <>
-                    <h1 className='type-h2 text-balance'>
-                      {t.youAre}{' '}
-                      <span className='font-serif font-normal text-primary italic'>
-                        {score}
-                        {t.independentSuffix}
-                      </span>
-                      .
-                    </h1>
+                    {hasScore ? (
+                      <h1 className='type-h2 text-balance'>
+                        {t.youAre}{' '}
+                        <span className='font-serif font-normal text-primary italic'>
+                          {score}
+                          {t.independentSuffix}
+                        </span>
+                        .
+                      </h1>
+                    ) : (
+                      <h1 className='type-h2 text-balance'>{t.zeroHeadline}</h1>
+                    )}
                     <div className='mt-5 flex flex-wrap items-center gap-3'>
                       {stats && stats.streak_days > 0 && (
                         <span className='inline-flex items-center gap-1.5 rounded-full bg-lime px-3 py-1 font-mono text-[11px] font-medium tracking-wider text-ink uppercase dark:text-background'>
@@ -439,7 +452,7 @@ export function DashboardView({ user }: { user: User }) {
               >
                 <div className='grid gap-10 lg:grid-cols-[1.7fr_1fr] lg:gap-0'>
                   <ActivityHeatmap sessions={sessions} />
-                  <IndependenceRing score={score} />
+                  <IndependenceRing score={score} empty={!hasScore} />
                 </div>
               </motion.section>
 
@@ -694,9 +707,17 @@ function ActivityHeatmap({ sessions }: { sessions: SessionRow[] }) {
   )
 }
 
-function IndependenceRing({ score }: { score: number }) {
+function IndependenceRing({
+  score,
+  empty = false,
+}: {
+  score: number
+  empty?: boolean
+}) {
   const t = useT(copy)
-  const data = [{ name: 'indep', value: score, fill: 'var(--chart-1)' }]
+  const data = [
+    { name: 'indep', value: empty ? 0 : score, fill: 'var(--chart-1)' },
+  ]
   return (
     <div className='flex flex-col items-start border-t border-border pt-8 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-12'>
       <p className='eyebrow'>{t.scoreEyebrow}</p>
@@ -721,12 +742,12 @@ function IndependenceRing({ score }: { score: number }) {
         </ResponsiveContainer>
         <div className='pointer-events-none absolute inset-0 grid place-items-center'>
           <span className='font-heading text-4xl font-light tracking-tight text-ink tabular-nums'>
-            {score}%
+            {empty ? '—' : `${score}%`}
           </span>
         </div>
       </div>
       <p className='mx-auto mt-4 max-w-[220px] text-center font-mono text-[11px] text-muted-foreground'>
-        {t.scoreCaption}
+        {empty ? t.scoreEmpty : t.scoreCaption}
       </p>
     </div>
   )
