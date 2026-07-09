@@ -5,8 +5,10 @@ import {
   generateChallenge as runGenerate,
   type GenLevel,
 } from '@/lib/ai/generate-challenge'
+import { editorialSystem } from '@/lib/ai/prompts/editorial'
 import { recommendSystem } from '@/lib/ai/prompts/recommend'
 import { challengePoints, computeIndependence } from '@/domain/scoring'
+import { seasonKey } from '@/domain/season'
 import { calcStreak } from '@/features/dashboard/streak'
 import { STREAK_REWARD } from '@/features/hints/constants'
 import { authActionUser } from '@/lib/api/guard'
@@ -81,7 +83,7 @@ export async function completeSession(args: {
       session.challenges?.level ?? 'beginner',
       independence,
     )
-    await supabaseAdmin.rpc(
+    const { data: awarded } = await supabaseAdmin.rpc(
       'award_session_points' as never,
       {
         p_user: a.userId,
@@ -90,6 +92,22 @@ export async function completeSession(args: {
         p_points: candidate,
       } as never,
     )
+    // Season league: scoring completions also count toward the user's small
+    // 4-week cohort (joined lazily on the first scoring completion).
+    const earned = typeof awarded === 'number' ? awarded : 0
+    if (earned > 0) {
+      const season = seasonKey()
+      const { error: joinErr } = await supabaseAdmin.rpc(
+        'join_league' as never,
+        { p_user: a.userId, p_season: season } as never,
+      )
+      const { error: ptsErr } = await supabaseAdmin.rpc(
+        'add_league_points' as never,
+        { p_user: a.userId, p_season: season, p_amount: earned } as never,
+      )
+      if (joinErr) Sentry.captureException(joinErr)
+      if (ptsErr) Sentry.captureException(ptsErr)
+    }
   }
 
   const base =
@@ -286,6 +304,72 @@ export async function generateChallenge(input: {
     return { error: 'Muitas requisições. Aguarde um momento.' }
   }
   return doGenerate(input)
+}
+
+// Generated once per challenge (first completer to ask pays the tokens),
+// cached in the row for everyone else. Gated on completion — the editorial
+// discusses the approach, so it must never work as a shortcut.
+export async function getEditorial(
+  token: string,
+  challengeId: string,
+): Promise<{ text: string } | { error: string }> {
+  const a = await authActionUser(token)
+  if ('error' in a) return { error: 'Não autenticado.' }
+  if (!(await rateLimit(`editorial:${a.userId}`, 6, 60_000))) {
+    return { error: 'Muitas requisições. Aguarde um momento.' }
+  }
+
+  const [{ data: challenge }, { data: done }] = await Promise.all([
+    supabaseAdmin
+      .from('challenges')
+      .select('id, title, description, client_briefing, level, stack, kind, editorial')
+      .eq('id', challengeId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('sessions')
+      .select('id')
+      .eq('user_id', a.userId)
+      .eq('challenge_id', challengeId)
+      .eq('status', 'completed')
+      .limit(1)
+      .maybeSingle(),
+  ])
+  const c = challenge as {
+    title: string
+    description: string
+    client_briefing: string
+    level: string
+    stack: string
+    kind: string | null
+    editorial: string | null
+  } | null
+  if (!c) return { error: 'Desafio não encontrado.' }
+  if (!done) return { error: 'Complete o desafio primeiro.' }
+  if (c.editorial) return { text: c.editorial }
+
+  try {
+    const text = await askClaude({
+      system: editorialSystem(await getLocale()),
+      user: [
+        `Desafio: ${c.title}`,
+        `Trilha: ${c.kind === 'design' ? 'system design' : `código (${c.stack})`} · nível ${c.level}`,
+        `Descrição: ${c.description}`,
+        `Briefing: ${c.client_briefing}`,
+      ].join('\n'),
+      maxTokens: 900,
+      effort: 'low',
+    })
+    if (!text.trim()) return { error: 'Não foi possível gerar o editorial.' }
+    // Only fill if still empty — a concurrent generation wins, we re-read.
+    await supabaseAdmin
+      .from('challenges')
+      .update({ editorial: text })
+      .eq('id', challengeId)
+      .is('editorial', null)
+    return { text }
+  } catch (e) {
+    return { error: aiErrorMessage(e) }
+  }
 }
 
 export type DailyChallenge = {

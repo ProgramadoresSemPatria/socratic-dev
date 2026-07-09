@@ -35,6 +35,14 @@ async function existingTitles(
   return (data ?? []).map((c) => String(c.title)).filter(Boolean)
 }
 
+function parseTopics(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((t) => String(t).toLowerCase().trim().replace(/\s+/g, '-'))
+    .filter((t) => t.length > 0 && t.length <= 30)
+    .slice(0, 4)
+}
+
 function avoidLine(titles: string[]): string {
   if (titles.length === 0) return ''
   return `\n\nESTES desafios JÁ EXISTEM — gere um tema CLARAMENTE diferente (não repita nem só troque o nome):\n- ${titles.join('\n- ')}`
@@ -88,6 +96,7 @@ export async function generateChallenge(opts: {
         client_briefing: String(json.client_briefing ?? ''),
         intro: String(json.intro ?? ''),
         kind: 'design',
+        topics: parseTopics(json.topics),
       })
       .select()
       .single()
@@ -111,6 +120,7 @@ export async function generateChallenge(opts: {
       intro: String(json.intro ?? ''),
       initial_code: String(json.initial_code ?? ''),
       tests_source: String(json.tests_source ?? ''),
+      topics: parseTopics(json.topics),
     })
     .select()
     .single()

@@ -17,4 +17,6 @@ export type Challenge = {
   tests_source: string
   intro: string
   kind: 'code' | 'design'
+  topics?: string[] | null
+  editorial?: string | null
 }

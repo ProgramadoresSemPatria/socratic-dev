@@ -44,6 +44,7 @@ export type Database = {
           client_briefing: string
           created_at: string
           description: string
+          editorial: string | null
           id: string
           initial_code: string
           intro: string
@@ -52,11 +53,13 @@ export type Database = {
           stack: string
           tests_source: string
           title: string
+          topics: string[]
         }
         Insert: {
           client_briefing: string
           created_at?: string
           description: string
+          editorial?: string | null
           id?: string
           initial_code?: string
           intro?: string
@@ -65,11 +68,13 @@ export type Database = {
           stack: string
           tests_source?: string
           title: string
+          topics?: string[]
         }
         Update: {
           client_briefing?: string
           created_at?: string
           description?: string
+          editorial?: string | null
           id?: string
           initial_code?: string
           intro?: string
@@ -78,6 +83,7 @@ export type Database = {
           stack?: string
           tests_source?: string
           title?: string
+          topics?: string[]
         }
         Relationships: []
       }
@@ -116,6 +122,38 @@ export type Database = {
           },
           {
             foreignKeyName: "code_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      league_members: {
+        Row: {
+          cohort: number
+          joined_at: string
+          points: number
+          season: string
+          user_id: string
+        }
+        Insert: {
+          cohort: number
+          joined_at?: string
+          points?: number
+          season: string
+          user_id: string
+        }
+        Update: {
+          cohort?: number
+          joined_at?: string
+          points?: number
+          season?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "league_members_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

@@ -4,6 +4,8 @@ import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
 import { RequireAuth } from '@/components/require-auth'
 import { Skeleton } from '@/components/ui/skeleton'
+import { getEditorial } from '@/features/challenges/actions'
+import { FormattedText } from '@/features/challenges/components/formatted-text'
 import {
   getCommunitySolutions,
   type CommunitySolution,
@@ -29,6 +31,7 @@ const copy = {
     independent: 'independent',
     back: 'Back to dashboard',
     profileCta: 'Sharing settings',
+    editorialTitle: 'What this challenge teaches',
   },
   pt: {
     eyebrow: 'Comunidade',
@@ -42,6 +45,7 @@ const copy = {
     independent: 'independente',
     back: 'Voltar ao dashboard',
     profileCta: 'Configurar compartilhamento',
+    editorialTitle: 'O que este desafio ensina',
   },
 }
 
@@ -111,6 +115,24 @@ function SolutionCard({
 function SolutionsContent({ challengeId }: { challengeId: string }) {
   const t = useT(copy)
   const [state, setState] = React.useState<State>({ kind: 'loading' })
+  const [editorial, setEditorial] = React.useState<string | null | undefined>(
+    undefined,
+  )
+
+  React.useEffect(() => {
+    if (state.kind !== 'ready') return
+    let active = true
+    ;(async () => {
+      const token = await getAccessToken()
+      const r = await getEditorial(token, challengeId)
+      if (active) setEditorial('error' in r ? null : r.text)
+    })().catch(() => {
+      if (active) setEditorial(null)
+    })
+    return () => {
+      active = false
+    }
+  }, [state.kind, challengeId])
 
   React.useEffect(() => {
     let active = true
@@ -172,6 +194,19 @@ function SolutionsContent({ challengeId }: { challengeId: string }) {
             <p className='type-body mt-2 text-muted-foreground'>
               {state.title}
             </p>
+
+            {editorial === undefined ? (
+              <Skeleton className='mt-8 h-40 w-full rounded-lg' />
+            ) : editorial ? (
+              <section className='mt-8 rounded-lg border border-primary/25 bg-primary/[0.04] px-6 py-5'>
+                <p className='font-mono text-[10px] tracking-wider text-primary uppercase'>
+                  {t.editorialTitle}
+                </p>
+                <div className='type-body mt-3'>
+                  <FormattedText text={editorial} />
+                </div>
+              </section>
+            ) : null}
             {state.solutions.length === 0 ? (
               <div className='mt-10 flex flex-col items-start gap-5 rounded-lg border border-border bg-card px-6 py-10'>
                 <Users className='size-5 text-primary' strokeWidth={1.5} />

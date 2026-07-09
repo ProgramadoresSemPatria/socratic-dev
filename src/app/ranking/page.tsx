@@ -5,14 +5,16 @@ import { Navbar } from '@/components/navbar'
 import { RequireAuth } from '@/components/require-auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  getMyLeague,
   getRanking,
   setDisplayName,
+  type LeagueData,
   type RankingData,
 } from '@/features/ranking/actions'
 import { getAccessToken } from '@/lib/api/client'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { Check, Trophy } from 'lucide-react'
+import { Check, Swords, Trophy } from 'lucide-react'
 import * as React from 'react'
 
 const copy = {
@@ -36,6 +38,13 @@ const copy = {
     howTitle: 'How points work',
     howBody:
       'Beginner 10 · Intermediate 25 · Advanced 50 — multiplied by your independence on that challenge. Each challenge counts once; "solve for me" zeroes the independence, so it earns 0.',
+    leagueEyebrow: 'Your league',
+    leagueTitle: 'Season',
+    leagueEnds: 'ends',
+    leagueHint:
+      'A small group of up to 25 people competing for 4 weeks. Score a challenge this season to join.',
+    leagueEmpty:
+      'Nobody in your league scored yet — take the lead with one challenge.',
   },
   pt: {
     eyebrow: 'Ranking',
@@ -57,6 +66,13 @@ const copy = {
     howTitle: 'Como funcionam os pontos',
     howBody:
       'Iniciante 10 · Intermediário 25 · Avançado 50 — multiplicado pela sua independência naquele desafio. Cada desafio conta uma vez; o "resolver pra mim" zera a independência, então vale 0.',
+    leagueEyebrow: 'Sua liga',
+    leagueTitle: 'Temporada',
+    leagueEnds: 'termina',
+    leagueHint:
+      'Um grupo pequeno de até 25 pessoas competindo por 4 semanas. Pontue um desafio nesta temporada pra entrar.',
+    leagueEmpty:
+      'Ninguém da sua liga pontuou ainda — assuma a liderança com um desafio.',
   },
 }
 
@@ -67,6 +83,7 @@ export default function RankingPage() {
 function RankingView() {
   const t = useT(copy)
   const [data, setData] = React.useState<RankingData | null>(null)
+  const [league, setLeague] = React.useState<LeagueData>(null)
   const [error, setError] = React.useState(false)
   const [loading, setLoading] = React.useState(true)
 
@@ -75,9 +92,13 @@ function RankingView() {
     setError(false)
     try {
       const token = await getAccessToken()
-      const r = await getRanking(token)
+      const [r, l] = await Promise.all([
+        getRanking(token),
+        getMyLeague(token).catch(() => null),
+      ])
       if ('error' in r) setError(true)
       else setData(r)
+      setLeague(l)
     } catch {
       setError(true)
     } finally {
@@ -131,6 +152,8 @@ function RankingView() {
               </div>
 
               {!data.me.hasName && <NamePrompt onSaved={load} />}
+
+              <LeagueSection league={league} />
 
               {data.entries.filter((e) => e.points > 0).length === 0 ? (
                 <p className='mt-10 text-sm text-muted-foreground'>
@@ -194,6 +217,70 @@ function RankingView() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+function LeagueSection({ league }: { league: LeagueData }) {
+  const t = useT(copy)
+  if (!league) {
+    return (
+      <div className='mt-8 flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-5 py-4'>
+        <Swords className='mt-0.5 size-4 shrink-0 text-primary' strokeWidth={1.5} />
+        <p className='text-[13px] leading-relaxed text-muted-foreground'>
+          {t.leagueHint}
+        </p>
+      </div>
+    )
+  }
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((Date.parse(league.endsAt) - Date.now()) / (24 * 3600_000)),
+  )
+  const scored = league.entries.filter((e) => e.points > 0)
+  return (
+    <section className='mt-8'>
+      <div className='flex items-baseline justify-between gap-3'>
+        <p className='eyebrow'>{t.leagueEyebrow}</p>
+        <span className='font-mono text-[11px] text-muted-foreground'>
+          {t.leagueTitle} {league.season} · {t.leagueEnds} {daysLeft}d
+        </span>
+      </div>
+      {scored.length === 0 ? (
+        <p className='mt-3 text-sm text-muted-foreground'>{t.leagueEmpty}</p>
+      ) : (
+        <ol className='mt-3 overflow-hidden rounded-xl border border-primary/25'>
+          {scored.map((e) => (
+            <li
+              key={e.position}
+              className={cn(
+                'flex items-center gap-4 border-b border-border px-5 py-3 last:border-b-0',
+                e.isMe ? 'bg-primary/[0.06]' : 'bg-card',
+              )}
+            >
+              <span
+                className={cn(
+                  'w-8 shrink-0 font-mono text-[13px] tabular-nums',
+                  e.position === 1 ? 'text-primary' : 'text-muted-foreground',
+                )}
+              >
+                #{e.position}
+              </span>
+              <span className='min-w-0 flex-1 truncate text-sm font-medium text-ink'>
+                {e.name}
+                {e.isMe && (
+                  <span className='ml-2 rounded-full bg-primary/15 px-2 py-0.5 font-mono text-[10px] tracking-wider text-primary uppercase'>
+                    {t.you}
+                  </span>
+                )}
+              </span>
+              <span className='shrink-0 font-mono text-[13px] text-muted-foreground tabular-nums'>
+                {e.points} {t.points}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   )
 }
 

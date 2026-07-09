@@ -122,6 +122,7 @@ export default function ChallengesLibraryPage() {
   const [loadError, setLoadError] = React.useState(false)
   const [reloadKey, setReloadKey] = React.useState(0)
   const [filter, setFilter] = React.useState<Filter>('all')
+  const [topic, setTopic] = React.useState<string | null>(null)
   const [page, setPage] = React.useState(0)
   const PAGE = 9
 
@@ -148,9 +149,19 @@ export default function ChallengesLibraryPage() {
   }
 
   const unique = dedupe(challenges ?? [])
-  const visible = unique.filter((c) =>
-    filter === 'all' ? true : c.kind === filter,
-  )
+  const topicCounts = new Map<string, number>()
+  for (const c of unique) {
+    for (const tp of c.topics ?? []) {
+      topicCounts.set(tp, (topicCounts.get(tp) ?? 0) + 1)
+    }
+  }
+  const topTopics = [...topicCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([k]) => k)
+  const visible = unique
+    .filter((c) => (filter === 'all' ? true : c.kind === filter))
+    .filter((c) => !topic || (c.topics ?? []).includes(topic))
   const counts: Record<Filter, number> = {
     all: unique.length,
     code: unique.filter((c) => c.kind === 'code').length,
@@ -216,6 +227,29 @@ export default function ChallengesLibraryPage() {
               </button>
             ))}
           </div>
+
+          {topTopics.length > 0 && (
+            <div className='mt-3 flex flex-wrap gap-1.5'>
+              {topTopics.map((tp) => (
+                <button
+                  key={tp}
+                  type='button'
+                  onClick={() => {
+                    setTopic((cur) => (cur === tp ? null : tp))
+                    setPage(0)
+                  }}
+                  className={cn(
+                    'cursor-pointer rounded-full border px-2.5 py-1 font-mono text-[11px] lowercase transition-colors duration-200',
+                    topic === tp
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:text-ink',
+                  )}
+                >
+                  {tp}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className='mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
             {loadError ? (
@@ -286,6 +320,14 @@ export default function ChallengesLibraryPage() {
                           {(t.levels as Record<string, string>)[c.level] ??
                             levelLabel(c.level)}
                         </span>
+                        {(c.topics ?? []).slice(0, 2).map((tp) => (
+                          <span
+                            key={tp}
+                            className='rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] lowercase text-primary'
+                          >
+                            {tp}
+                          </span>
+                        ))}
                       </div>
                       <h3 className='type-h4 relative'>{c.title}</h3>
                       <p className='relative mt-1.5 line-clamp-2 text-sm text-muted-foreground'>
