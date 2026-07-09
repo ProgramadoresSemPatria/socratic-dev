@@ -17,6 +17,7 @@
     "@excalidraw/excalidraw": "^0.18.1",
     "@monaco-editor/react": "^4.7.0",
     "@sentry/nextjs": "^10.63.0",
+    "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.106.2",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
