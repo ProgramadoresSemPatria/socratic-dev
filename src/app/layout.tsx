@@ -1,4 +1,5 @@
 import { LocaleProvider } from '@/lib/i18n'
+import { getLocale } from '@/lib/i18n/server'
 import { ThemeProvider, themeInitScript } from '@/lib/theme'
 import { cn } from '@/lib/utils'
 import { Analytics } from '@vercel/analytics/next'
@@ -37,14 +38,15 @@ export const metadata: Metadata = {
     'A coding environment where the AI never hands you the answer. It makes you find it. For devs who want to actually learn in the AI era.',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const locale = await getLocale()
   return (
     <html
-      lang='en'
+      lang={locale === 'pt' ? 'pt-BR' : 'en'}
       suppressHydrationWarning
       className={cn(
         'h-full antialiased',
@@ -61,7 +63,7 @@ export default function RootLayout({
       >
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <ThemeProvider>
-          <LocaleProvider>{children}</LocaleProvider>
+          <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
         </ThemeProvider>
         <Analytics />
       </body>

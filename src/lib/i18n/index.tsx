@@ -11,20 +11,23 @@ const LocaleContext = React.createContext<{
   setLocale: (l: Locale) => void
 }>({ locale: 'en', setLocale: () => {} })
 
-function detectLocale(): Locale {
-  if (typeof window === 'undefined') return 'en'
-  const stored = window.localStorage.getItem(LOCALE_COOKIE)
-  if (stored === 'pt' || stored === 'en') return stored
-  return navigator.language?.toLowerCase().startsWith('pt') ? 'pt' : 'en'
-}
+export function LocaleProvider({
+  initialLocale = 'en',
+  children,
+}: {
+  initialLocale?: Locale
+  children: React.ReactNode
+}) {
+  // The server already resolved the locale (cookie, then Accept-Language) and
+  // rendered the HTML with it, so starting here means the first client render
+  // matches the SSR output exactly — no hydration mismatch, no language flash.
+  const [locale, setLocaleState] = React.useState<Locale>(initialLocale)
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = React.useState<Locale>('en')
-
+  // One-way sync only: never call setLocaleState here. localStorage is a mirror
+  // of the server's decision, not an input to it.
   React.useEffect(() => {
-    const detected = detectLocale()
-    setLocaleState(detected)
-  }, [])
+    window.localStorage.setItem(LOCALE_COOKIE, locale)
+  }, [locale])
 
   React.useEffect(() => {
     document.documentElement.lang = locale === 'pt' ? 'pt-BR' : 'en'
