@@ -5,6 +5,7 @@ import { useT } from '@/lib/i18n'
 import { Loader2 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
+import { registerExcalidrawModule } from '../utils/excalidraw-registry'
 import type { ExcalidrawApi } from '../utils/scene'
 
 const copy = {
@@ -24,7 +25,11 @@ function CanvasLoading() {
 }
 
 const Excalidraw = dynamic(
-  () => import('@excalidraw/excalidraw').then((m) => m.Excalidraw),
+  () =>
+    import('@excalidraw/excalidraw').then((m) => {
+      registerExcalidrawModule(m)
+      return m.Excalidraw
+    }),
   {
     ssr: false,
     loading: () => <CanvasLoading />,
