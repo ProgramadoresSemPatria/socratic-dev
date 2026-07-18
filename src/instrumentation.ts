@@ -1,12 +1,11 @@
-import * as Sentry from '@sentry/nextjs'
+import { captureException } from '@/lib/report-error'
 
-export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('../sentry.server.config')
-  }
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('../sentry.edge.config')
-  }
+// The server-side @sentry/nextjs SDK was removed on purpose: it pulls
+// OpenTelemetry (multiple MB) into the server/worker bundle. Server errors
+// are reported through lib/report-error (plain fetch to Sentry); the browser
+// keeps the full SDK via instrumentation-client.ts.
+export async function register() {}
+
+export function onRequestError(error: unknown) {
+  captureException(error)
 }
-
-export const onRequestError = Sentry.captureRequestError
