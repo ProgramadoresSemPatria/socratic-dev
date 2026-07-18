@@ -1,3 +1,4 @@
+import { excalidrawModule } from './excalidraw-registry'
 import { getLibraryComponent, type LibraryComponent } from './library-components'
 
 type SceneEl = {
@@ -531,7 +532,7 @@ export async function buildSceneElements(
   nodes: { id: string; label: string; type?: string; note?: string; tier?: number }[],
   edges: { from: string; to: string; label?: string; dashed?: boolean }[],
 ): Promise<readonly unknown[]> {
-  const { convertToExcalidrawElements } = await import('@excalidraw/excalidraw')
+  const { convertToExcalidrawElements } = await excalidrawModule()
 
   const COL_GAP = 96
   const ROW_GAP = 150
@@ -829,7 +830,7 @@ export function summarizeElements(elements: readonly unknown[]): string {
 }
 
 export async function exportScenePng(api: ExcalidrawApi): Promise<string | null> {
-  const { exportToBlob } = await import('@excalidraw/excalidraw')
+  const { exportToBlob } = await excalidrawModule()
   const blob = await exportToBlob({
     elements: api.getSceneElements(),
     appState: {
