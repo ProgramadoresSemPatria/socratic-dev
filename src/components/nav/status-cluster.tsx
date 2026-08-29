@@ -1,12 +1,14 @@
 'use client'
 
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/components/ui/tooltip'
 import { getStreak } from '@/features/dashboard/actions'
+import { currentPeriod } from '@/features/hints/period'
 import { getHintBalance } from '@/features/hints/actions'
 import { getMyRank } from '@/features/ranking/actions'
 import { apiFetch, getAccessToken } from '@/lib/api/client'
 import { useT } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { Flame, Lightbulb, Plus, Trophy } from 'lucide-react'
+import { Flame, Lightbulb, Trophy } from 'lucide-react'
 import Link from 'next/link'
 import * as React from 'react'
 import { copy } from './copy'
@@ -92,6 +94,13 @@ export function useStreak(enabled: boolean) {
   return streak
 }
 
+// Whole days until the weekly allowance resets (Sunday 23:59 BRT), for
+// the tooltip on the hints counter.
+function daysToReset(): number {
+  const ms = currentPeriod().resetsAt.getTime() - Date.now()
+  return Math.max(1, Math.ceil(ms / 86_400_000))
+}
+
 export function StatusCluster({
   position,
   hints,
@@ -133,30 +142,26 @@ export function StatusCluster({
         <span aria-hidden className='bg-border my-2 w-px' />
       )}
       {hints.remaining !== null && (
-        <div className='flex items-center gap-1.5 pr-1 pl-2.5'>
-          <Lightbulb className='text-primary size-3.5' strokeWidth={1.5} />
-          <span
-            title={t.hintsAvailable}
-            className={cn(
-              'font-mono text-[12px] tabular-nums',
-              hints.remaining <= 0
-                ? 'text-destructive'
-                : 'text-muted-foreground',
-            )}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div className='flex cursor-default items-center gap-1.5 pr-3 pl-2.5' />
+            }
           >
-            {hints.remaining}
-          </span>
-          <button
-            type='button'
-            onClick={hints.buy}
-            disabled={hints.buying}
-            title={t.buyHints}
-            aria-label={t.buyHints}
-            className='text-primary hover:bg-primary/10 relative grid size-6 cursor-pointer place-items-center rounded-full transition-colors duration-200 before:absolute before:-inset-2 before:content-[""] disabled:opacity-50'
-          >
-            <Plus className='size-3.5' strokeWidth={1.5} />
-          </button>
-        </div>
+            <Lightbulb className='text-primary size-3.5' strokeWidth={1.5} />
+            <span
+              className={cn(
+                'font-mono text-[12px] tabular-nums',
+                hints.remaining <= 0
+                  ? 'text-destructive'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {hints.remaining}
+            </span>
+          </TooltipTrigger>
+          <TooltipPopup>{t.hintsResetIn(daysToReset())}</TooltipPopup>
+        </Tooltip>
       )}
     </div>
   )

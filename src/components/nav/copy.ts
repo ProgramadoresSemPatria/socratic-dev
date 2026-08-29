@@ -10,6 +10,8 @@ export const copy = {
     profile: 'Your profile',
     avatar: 'Your avatar',
     hintsAvailable: 'Available hints: 35 free per week, resets Sunday 23:59',
+    hintsResetIn: (d: number) =>
+      `Weekly hints · resets in ${d} ${d === 1 ? 'day' : 'days'}`,
     buyHints: `Buy +${HINT_PACK.hints} hints`,
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
@@ -44,6 +46,8 @@ export const copy = {
     profile: 'Seu perfil',
     avatar: 'Seu avatar',
     hintsAvailable: 'Hints disponíveis: 35 grátis por semana, reseta domingo 23:59',
+    hintsResetIn: (d: number) =>
+      `Hints da semana · reseta em ${d} ${d === 1 ? 'dia' : 'dias'}`,
     buyHints: `Comprar +${HINT_PACK.hints} hints`,
     openMenu: 'Abrir menu',
     closeMenu: 'Fechar menu',
