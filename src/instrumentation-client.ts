@@ -43,6 +43,12 @@ export const onRouterTransitionStart = Sentry.captureRouterTransitionStart
 declare global {
   interface Window {
     __captureException?: (e: unknown) => void
+    __posthog?: typeof posthog
   }
 }
 window.__captureException = (e) => Sentry.captureException(e)
+// Same bridge idea for analytics: posthog-js is a ~330KB browser SDK, and a
+// static import in analytics.ts was getting SSR-compiled (and duplicated)
+// into the server bundle. This file is client-only, so the instance lives
+// here and everyone else reaches it through window.
+window.__posthog = posthog
