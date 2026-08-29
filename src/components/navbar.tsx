@@ -15,7 +15,6 @@ import Link from 'next/link'
 import * as React from 'react'
 import { Logo } from './logo'
 import { copy } from './nav/copy'
-import { CommunityMenu, NavMenuGroup, TrainMenu } from './nav/menus'
 import { MobileMenu } from './nav/mobile-menu'
 import {
   StatusCluster,
@@ -25,11 +24,22 @@ import {
 } from './nav/status-cluster'
 import { Button } from './ui/button'
 
-function NavLink({ href, label }: { href: string; label: string }) {
+function NavLink({
+  href,
+  label,
+  className,
+}: {
+  href: string
+  label: string
+  className?: string
+}) {
   return (
     <Link
       href={href}
-      className='text-muted-foreground hover:text-ink hidden px-3 py-2 text-sm font-medium transition-colors duration-200 lg:inline-flex'
+      className={cn(
+        'text-muted-foreground hover:text-ink hidden px-3 py-2 text-sm font-medium transition-colors duration-200 lg:inline-flex',
+        className,
+      )}
     >
       <span className='link-underline'>{label}</span>
     </Link>
@@ -80,7 +90,7 @@ export function Navbar() {
       >
         <div
           className={cn(
-            'rounded-2xl border transition-all duration-300',
+            'rounded-lg border transition-all duration-300',
             scrolled || menuOpen
               ? 'border-border bg-background/90 shadow-soft backdrop-blur'
               : 'border-transparent bg-transparent',
@@ -95,11 +105,26 @@ export function Navbar() {
             <div className='flex items-center gap-5'>
               <Logo size='lg' />
               <span aria-hidden className='bg-border hidden h-5 w-px lg:block' />
-              <nav className='hidden items-center gap-1 lg:flex'>
-                <NavMenuGroup>
-                  <TrainMenu loggedIn={!loading && !!user} />
-                  <CommunityMenu />
-                </NavMenuGroup>
+              {/* Flat links: every destination visible at a glance — the
+                  hover dropdowns hid them and read as confusing. */}
+              <nav className='hidden items-center gap-0.5 lg:flex'>
+                <NavLink
+                  href={!loading && user ? '/challenge' : '/onboarding'}
+                  label={t.trackCode}
+                />
+                <NavLink
+                  href={!loading && user ? '/design' : '/onboarding'}
+                  label='Design'
+                />
+                <NavLink href='/challenges' label={t.library} />
+                <NavLink href='/ranking' label={t.ranking} />
+                {!loading && user && (
+                  <NavLink
+                    href='/solutions'
+                    label={t.solutionsTitle}
+                    className='lg:hidden xl:inline-flex'
+                  />
+                )}
               </nav>
             </div>
 
