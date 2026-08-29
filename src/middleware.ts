@@ -51,6 +51,17 @@ export async function middleware(request: NextRequest) {
   }
 
   const exp = tokenExpiry(request)
+
+  // Logged-in users landing on the marketing page go straight to their
+  // dashboard — the landing is for visitors. An auth cookie (even one
+  // pending refresh) is the signal; if it turns out stale, the dashboard's
+  // own guard bounces through /login as usual.
+  if (exp !== null && request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(
+      new URL(`${BASE_PATH}/dashboard`, request.url),
+    )
+  }
+
   if (exp === null) return NextResponse.next({ request })
   if (exp * 1000 - Date.now() > REFRESH_MARGIN_MS) {
     return NextResponse.next({ request })

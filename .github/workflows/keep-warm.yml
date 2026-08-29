@@ -1,0 +1,21 @@
+# O Worker (OpenNext) tem cold start de 5-8s por causa do bundle do servidor;
+# com pouco tráfego os isolates esfriam e cada primeira visita paga esse preço.
+# Este ping periódico mantém quente o caminho mais comum. Mitigação, não cura:
+# a solução definitiva é reduzir o bundle do servidor.
+name: keep-warm
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping production
+        run: |
+          for path in "" "/challenges" "/ranking"; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 \
+              "https://labs.borderlesscoding.com/socratic-dev${path}" || echo fail)
+            echo "${code} /socratic-dev${path}"
+          done

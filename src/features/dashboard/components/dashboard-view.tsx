@@ -279,7 +279,7 @@ export function DashboardView({ user }: { user: User }) {
             transition={{ duration: 0.6, ease: EASE }}
             className='relative mb-12 overflow-hidden rounded-lg bg-pastel-greige/60 px-6 py-10 sm:px-10 lg:px-12 lg:py-12'
           >
-            <div className='pointer-events-none absolute inset-y-0 right-0 hidden w-[44%] opacity-20 mix-blend-multiply sm:block dark:mix-blend-screen'>
+            <div className='pointer-events-none absolute -top-2 right-0 hidden h-[58%] w-[44%] opacity-20 mix-blend-multiply sm:block dark:mix-blend-screen'>
               <Halftone
                 draw={glyph('>_', 1.5)}
                 ambient

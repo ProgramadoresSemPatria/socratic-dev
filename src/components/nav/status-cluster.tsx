@@ -13,15 +13,29 @@ import Link from 'next/link'
 import * as React from 'react'
 import { copy } from './copy'
 
+// The navbar remounts on every route change; without this cache the cluster
+// vanished and popped back in on each navigation. Values persist for the
+// lifetime of the loaded bundle and are refreshed in the background.
+const cache: {
+  remaining: number | null
+  position: number | null
+  streak: number | null
+} = { remaining: null, position: null, streak: null }
+
 export function useHints(enabled: boolean) {
-  const [remaining, setRemaining] = React.useState<number | null>(null)
+  const [remaining, setRemaining] = React.useState<number | null>(
+    cache.remaining,
+  )
   const [buying, setBuying] = React.useState(false)
 
   const refresh = React.useCallback(() => {
     if (!enabled) return
     getAccessToken()
       .then((tk) => getHintBalance(tk))
-      .then((b) => setRemaining(b.remaining))
+      .then((b) => {
+        cache.remaining = b.remaining
+        setRemaining(b.remaining)
+      })
       .catch(() => {})
   }, [enabled])
 
@@ -55,7 +69,9 @@ export function useHints(enabled: boolean) {
 export type Hints = ReturnType<typeof useHints>
 
 export function useRank(enabled: boolean) {
-  const [position, setPosition] = React.useState<number | null>(null)
+  const [position, setPosition] = React.useState<number | null>(
+    cache.position,
+  )
 
   React.useEffect(() => {
     if (!enabled) return
@@ -63,7 +79,10 @@ export function useRank(enabled: boolean) {
     getAccessToken()
       .then((tk) => getMyRank(tk))
       .then((r) => {
-        if (!cancelled && r) setPosition(r.position)
+        if (!cancelled && r) {
+          cache.position = r.position
+          setPosition(r.position)
+        }
       })
       .catch(() => {})
     return () => {
@@ -75,7 +94,7 @@ export function useRank(enabled: boolean) {
 }
 
 export function useStreak(enabled: boolean) {
-  const [streak, setStreak] = React.useState<number>(0)
+  const [streak, setStreak] = React.useState<number>(cache.streak ?? 0)
 
   React.useEffect(() => {
     if (!enabled) return
@@ -83,7 +102,10 @@ export function useStreak(enabled: boolean) {
     getAccessToken()
       .then((tk) => getStreak(tk))
       .then((s) => {
-        if (!cancelled) setStreak(s)
+        if (!cancelled) {
+          cache.streak = s
+          setStreak(s)
+        }
       })
       .catch(() => {})
     return () => {
@@ -101,17 +123,39 @@ function daysToReset(): number {
   return Math.max(1, Math.ceil(ms / 86_400_000))
 }
 
+function SlotSkeleton() {
+  return (
+    <span className='flex items-center pr-2.5 pl-3'>
+      <span className='bg-border h-3 w-9 animate-pulse rounded-full' />
+    </span>
+  )
+}
+
 export function StatusCluster({
   position,
   hints,
   streak,
+  loggedIn = true,
 }: {
   position: number | null
   hints: Hints
   streak: number
+  loggedIn?: boolean
 }) {
   const t = useT(copy)
-  if (position === null && hints.remaining === null && streak <= 0) return null
+  if (!loggedIn) return null
+  // First load of the session (no cached values yet): keep the pill in place
+  // with a skeleton so the header doesn't jump when the numbers arrive.
+  const loading = position === null && hints.remaining === null
+  if (loading) {
+    return (
+      <div className='border-border bg-background hidden h-9 items-stretch overflow-hidden rounded-full border sm:inline-flex'>
+        <SlotSkeleton />
+        <span aria-hidden className='bg-border my-2 w-px' />
+        <SlotSkeleton />
+      </div>
+    )
+  }
   return (
     <div className='border-border bg-background hidden h-9 items-stretch overflow-hidden rounded-full border sm:inline-flex'>
       {streak > 0 && (
