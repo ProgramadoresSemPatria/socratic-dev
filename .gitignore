@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/auditoria_socratic
 
 # next.js
 /.next/

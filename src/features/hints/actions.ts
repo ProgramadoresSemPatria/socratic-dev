@@ -1,6 +1,6 @@
 'use server'
 
-import { authActionUser } from '@/lib/api/guard'
+import { authActionUser, ownsSession } from '@/lib/api/guard'
 import { consumeHints, getBalance } from '@/lib/api/hints-server'
 import type { HintBalance } from './types'
 
@@ -29,6 +29,11 @@ export async function logHint(args: {
   if (![1, 2, 3].includes(args.hintLevel)) {
     return { error: 'hint_level inválido' }
   }
+  // LABS01-201: consume_hints refuses a foreign session too (migration 027),
+  // but it answers with the generic "no credits" error — check here so the
+  // client gets the real reason.
+  if (!(await ownsSession(a.userId, args.sessionId)))
+    return { error: 'Sessão inválida' }
   const spend = Math.min(Math.max(Number(args.cost) || 1, 1), 10)
   const remaining = await consumeHints(
     a.userId,

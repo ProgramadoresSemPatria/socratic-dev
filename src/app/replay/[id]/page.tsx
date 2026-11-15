@@ -132,15 +132,19 @@ async function fetchReplay(id: string) {
     .maybeSingle()
   if (!session.data) return null
 
+  const s = session.data as { user_id: string; challenge_id: string }
+
+  // LABS01-201: this page is public by design, so it must only ever render a
+  // submission written by the session's own author. Migration 027 blocks new
+  // cross-user rows; this filter also hides any that got in before it.
   const submission = await supabaseAdmin
     .from('code_submissions')
     .select('code, review_response, submitted_at')
     .eq('session_id', id)
+    .eq('user_id', s.user_id)
     .order('submitted_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-
-  const s = session.data as { user_id: string; challenge_id: string }
   const hints = await supabaseAdmin
     .from('hints_used')
     .select('hint_level, used_at, is_solve, sessions!inner(challenge_id)')
