@@ -5,6 +5,8 @@ import { solvePasteSystem } from '@/lib/ai/prompts/solve-paste'
 import {
   CAPS,
   jsonError,
+  notOwner,
+  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
@@ -180,6 +182,8 @@ export async function POST(req: Request) {
     if (work.length > CAPS.text) return tooLarge()
     if (tests.length > CAPS.text) return tooLarge()
     if (!sessionId) return jsonError('session_id é obrigatório.', 400)
+    // LABS01-201: never charge a solve against someone else's session.
+    if (!(await ownsSession(userId, sessionId))) return notOwner()
 
     // Consume (and record is_solve) before generating: the solution must
     // never be handed out without the penalty landing in hints_used.
