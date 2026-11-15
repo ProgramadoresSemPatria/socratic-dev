@@ -2,6 +2,8 @@ import { aiErrorResponse, askClaude, askClaudeVision } from '@/lib/ai/client'
 import { reviewSystem } from '@/lib/ai/prompts/review'
 import {
   CAPS,
+  notOwner,
+  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
@@ -29,6 +31,10 @@ export async function POST(req: Request) {
 
   if (imageBase64 && imageBase64.length > CAPS.imageBase64) return tooLarge()
   if (summary.length > CAPS.text) return tooLarge()
+
+  // LABS01-201: same as /api/review — the submission is what /replay/[id]
+  // renders publicly.
+  if (sessionId && !(await ownsSession(userId, sessionId))) return notOwner()
 
   const userText = [
     `Desafio: ${title}`,
