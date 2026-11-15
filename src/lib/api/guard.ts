@@ -32,6 +32,27 @@ export async function authActionUser(
   return { userId: user.id }
 }
 
+// LABS01-201 — the API routes take `session_id` from the request body, and
+// /replay/[id] renders the latest submission of a session, so a foreign id is
+// a defacement vector (audit 3.2). Migration 027 also enforces this with a
+// trigger; checking here fails fast, with a useful status, before the AI call.
+export async function ownsSession(
+  userId: string,
+  sessionId: string,
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return data !== null
+}
+
+export function notOwner(): Response {
+  return jsonError('Sessão inválida.', 403)
+}
+
 export function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status })
 }
