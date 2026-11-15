@@ -3,6 +3,8 @@ import { reviewSystem } from '@/lib/ai/prompts/review'
 import {
   CAPS,
   jsonError,
+  notOwner,
+  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
@@ -30,6 +32,10 @@ export async function POST(req: Request) {
 
   if (!code) return jsonError('code é obrigatório', 400)
   if (code.length > CAPS.text) return tooLarge()
+
+  // LABS01-201: the submission lands on a public replay page, so refuse a
+  // session the caller does not own before spending a single AI token.
+  if (sessionId && !(await ownsSession(userId, sessionId))) return notOwner()
 
   const testLine =
     testsTotal > 0
