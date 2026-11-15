@@ -12,6 +12,8 @@ import type { ChatMsg } from '@/lib/ai/types'
 import {
   CAPS,
   jsonError,
+  notOwner,
+  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
@@ -51,6 +53,8 @@ export async function POST(req: Request) {
     let remaining: number | undefined
     if (mode === 'hint' || mode === 'solve') {
       if (!sessionId) return jsonError('session_id é obrigatório.', 400)
+      // LABS01-201: hints and solves are charged to the session's owner.
+      if (!(await ownsSession(userId, sessionId))) return notOwner()
       const level = mode === 'solve' ? 3 : (Number(body.hintLevel) || 1)
       const cost = mode === 'solve' ? 5 : 1
       const r = await consumeHints(
