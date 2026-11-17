@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
 import type { User } from '@supabase/supabase-js'
+import { isBlockedAuthMethod } from './auth-method'
 
 export async function getUserFromToken(
   token: string | null | undefined,
@@ -7,6 +8,12 @@ export async function getUserFromToken(
   if (!token) return null
   const { data, error } = await supabaseAdmin.auth.getUser(token)
   if (error || !data.user) return null
+  // LABS01-218: the token is valid, but credentials belong to the Borderless
+  // platform. A session established with a password, an OAuth provider or an
+  // anonymous sign-in never passed through the platform check, so it is not a
+  // session this product grants access to. Read after getUser, which is what
+  // verifies the signature.
+  if (isBlockedAuthMethod(token)) return null
   return data.user
 }
 
