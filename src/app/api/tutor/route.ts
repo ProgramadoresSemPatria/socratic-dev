@@ -1,24 +1,23 @@
-import type { ChallengeKind } from '@/domain/challenge-kinds'
 import {
   aiErrorResponse,
   askClaudeStream,
-  type ChatTurn,
   type TextBlock,
 } from '@/lib/ai/client'
 import { captureException } from '@/lib/report-error'
 import { solveSystem, solveTask } from '@/lib/ai/prompts/solve'
 import { hintGuide, tutorSystem, tutorTask } from '@/lib/ai/prompts/tutor'
-import type { ChatMsg } from '@/lib/ai/types'
+import { buildHistory } from '@/lib/ai/tutor-history'
 import {
   CAPS,
   jsonError,
   notOwner,
-  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
   tooMany,
 } from '@/lib/api/guard'
+import { sessionContext } from '@/lib/api/session-context'
+import { loadTranscript, saveTurns } from '@/lib/api/tutor-transcript'
 import { consumeHints } from '@/lib/api/hints-server'
 import { getLocale } from '@/lib/i18n/server'
 
@@ -35,26 +34,28 @@ export async function POST(req: Request) {
     if (!(await rateLimit(`tutor:${userId}`, 40, 60_000))) return tooMany()
 
     const body = await req.json()
-    const kind: ChallengeKind = body.domain === 'design' ? 'design' : 'code'
     const mode: Mode =
       body.mode === 'hint' ? 'hint' : body.mode === 'solve' ? 'solve' : 'reply'
-    const messages: ChatMsg[] = Array.isArray(body.messages)
-      ? body.messages
-      : []
     const work: string = body.code ?? ''
-    const title: string = body.title ?? ''
-    const briefing: string = body.briefing ?? ''
+    // The only thing the client still contributes to the conversation: the
+    // message the student just typed. Roles, title, briefing and tests are
+    // read on the server (LABS01-208 / audit 3.3).
+    const text: string = typeof body.text === 'string' ? body.text : ''
     const sessionId: string | undefined = body.session_id
 
     if (work.length > CAPS.text) return tooLarge()
-    if (messages.reduce((n, m) => n + (m.text?.length ?? 0), 0) > CAPS.transcript)
-      return tooLarge()
+    if (text.length > CAPS.text) return tooLarge()
+
+    // Every mode needs the session now: it is where the challenge comes from.
+    // `reply` used to pass without one, which is what forced title/briefing to
+    // travel in the body in the first place.
+    if (!sessionId) return jsonError('session_id é obrigatório.', 400)
+    const ctx = await sessionContext(userId, sessionId)
+    if (!ctx) return notOwner()
+    const kind = ctx.kind
 
     let remaining: number | undefined
     if (mode === 'hint' || mode === 'solve') {
-      if (!sessionId) return jsonError('session_id é obrigatório.', 400)
-      // LABS01-201: hints and solves are charged to the session's owner.
-      if (!(await ownsSession(userId, sessionId))) return notOwner()
       const level = mode === 'solve' ? 3 : (Number(body.hintLevel) || 1)
       const cost = mode === 'solve' ? 5 : 1
       const r = await consumeHints(
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
       },
       {
         type: 'text',
-        text: `Desafio: ${title}\nBriefing do cliente: ${briefing}`,
+        text: `Desafio: ${ctx.title}\nBriefing do cliente: ${ctx.briefing}`,
         cache_control: { type: 'ephemeral' },
       },
     ]
@@ -94,24 +95,10 @@ export async function POST(req: Request) {
           ? hintGuide(kind, (Number(body.hintLevel) || 1) as 1 | 2 | 3)
           : tutorTask(kind)
 
-    // Real multi-turn history so the conversation prefix caches and grows
-    // incrementally; the breakpoint sits on the last history turn. Volatile
-    // content (current code + task) goes after it, in the final user turn.
-    const history: ChatTurn[] = messages.map((m) => ({
-      role: m.role === 'ai' ? 'assistant' : 'user',
-      content: m.text ?? '',
-    }))
-    if (!history.length || history[0].role !== 'user') {
-      history.unshift({ role: 'user', content: '(início — primeira interação)' })
-    }
-    const last = history[history.length - 1]
-    last.content = [
-      {
-        type: 'text',
-        text: typeof last.content === 'string' ? last.content : '',
-        cache_control: { type: 'ephemeral' },
-      },
-    ]
+    // Real multi-turn history, rebuilt from the stored transcript so the
+    // conversation prefix caches and grows incrementally. Volatile content
+    // (current code + task) goes after the breakpoint, in the final user turn.
+    const history = buildHistory(await loadTranscript(userId, sessionId), text)
 
     const finalUser = [
       kind === 'design'
@@ -137,12 +124,23 @@ export async function POST(req: Request) {
     try {
       first = await iterator.next()
     } catch (e) {
+      // Nothing was produced, so the turn never happened: keep the student's
+      // message out of the transcript rather than record a question the tutor
+      // never saw an answer to.
       return aiErrorResponse(e)
     }
 
     const encoder = new TextEncoder()
     const responseBody = new ReadableStream<Uint8Array>({
       async start(controller) {
+        let reply = ''
+        // Persisting before close keeps the write inside the request: the
+        // response body is still open, so the worker is still alive.
+        const persist = () =>
+          saveTurns(userId, sessionId, [
+            { role: 'user', content: text },
+            { role: 'assistant', content: reply },
+          ])
         try {
           let cur = first
           while (!cur.done) {
@@ -154,13 +152,19 @@ export async function POST(req: Request) {
               event.type === 'content_block_delta' &&
               event.delta?.type === 'text_delta'
             ) {
-              controller.enqueue(encoder.encode(event.delta.text ?? ''))
+              const chunk = event.delta.text ?? ''
+              reply += chunk
+              controller.enqueue(encoder.encode(chunk))
             }
             cur = await iterator.next()
           }
+          await persist()
           controller.close()
         } catch (e) {
           captureException(e)
+          // The student read whatever arrived, so it is part of the
+          // conversation even though the stream broke.
+          await persist()
           controller.error(e)
         }
       },
