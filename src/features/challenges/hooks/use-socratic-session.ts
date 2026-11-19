@@ -33,6 +33,9 @@ export function useSocraticSession<TWork>(opts: {
   const [hintsUsed, setHintsUsed] = React.useState(0)
   const [elapsed, setElapsed] = React.useState(0)
   const [sessionId, setSessionId] = React.useState<string | null>(null)
+  // LABS01-208: the AI routes require session_id, so a session that never
+  // opened is a dead tutor, not a degraded one. The UI needs to say so.
+  const [sessionError, setSessionError] = React.useState(false)
   const [work, setWork] = React.useState<TWork>(initialWork)
   const [ready, setReady] = React.useState(false)
   const [hintsRemaining, setHintsRemaining] = React.useState<number | null>(
@@ -97,9 +100,19 @@ export function useSocraticSession<TWork>(opts: {
     }
 
     getAccessToken().then((token) => {
-      startSession({ token, challengeId: challenge.id })
-        .then((d) => d?.id && setSessionId(d.id))
-        .catch(() => {})
+      // One retry before giving up: a single cold-start timeout used to leave
+      // sessionId null forever, and with the server reading the challenge
+      // from the session that now means no tutor at all.
+      const open = (): Promise<void> =>
+        startSession({ token, challengeId: challenge.id }).then((d) => {
+          if (!d?.id) throw new Error('session not created')
+          setSessionId(d.id)
+          setSessionError(false)
+        })
+      void open()
+        .catch(() => open())
+        .catch(() => setSessionError(true))
+
       const refreshBalance = () =>
         getHintBalance(token)
           .then((b) => setHintsRemaining(b.remaining))
@@ -279,6 +292,9 @@ export function useSocraticSession<TWork>(opts: {
     hintsUsed,
     elapsed,
     sessionId,
+    // Everything that calls an AI route needs this: no session, no request.
+    sessionReady: sessionId !== null,
+    sessionError,
     work,
     setWork,
     scrollRef,
