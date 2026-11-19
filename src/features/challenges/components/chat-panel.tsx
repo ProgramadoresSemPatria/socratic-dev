@@ -30,6 +30,8 @@ const copy = {
     inputHelp: 'enter to send · shift+enter for new line',
     hintCost: (cost: number) => `−${cost}`,
     hintCostTitle: (cost: number) => `-${cost} independence pts`,
+    sessionOpening: 'Preparing your session...',
+    sessionFailed: "Couldn't open the session. Reload the page to try again.",
   },
   pt: {
     tutorName: 'Tutor Socrático',
@@ -51,6 +53,9 @@ const copy = {
     inputHelp: 'enter para enviar · shift+enter quebra linha',
     hintCost: (cost: number) => `−${cost}`,
     hintCostTitle: (cost: number) => `-${cost} pts de independência`,
+    sessionOpening: 'Preparando sua sessão...',
+    sessionFailed:
+      'Não foi possível abrir a sessão. Recarregue a página para tentar de novo.',
   },
 }
 
@@ -78,6 +83,8 @@ export function ChatPanel({
   buyError,
   bought,
   stepPrompt,
+  sessionReady = true,
+  sessionError = false,
 }: {
   messages: ChatMsg[]
   scrollRef: React.RefObject<HTMLDivElement | null>
@@ -96,10 +103,15 @@ export function ChatPanel({
   // Set while a solved walkthrough is revealing one step at a time — renders
   // a "Continue" chip after the last message instead of dumping everything.
   stepPrompt?: { label: string; onContinue: () => void } | null
+  // LABS01-208: the AI routes require session_id. Until the session exists,
+  // asking the tutor anything would only earn a 400.
+  sessionReady?: boolean
+  sessionError?: boolean
 }) {
   const t = useT(copy)
   const noHints = hintsRemaining !== null && hintsRemaining <= 0
   const cantSolve = hintsRemaining !== null && hintsRemaining < SOLVE_COST
+  const waiting = !sessionReady
   return (
     <>
       <div className='flex h-10 items-center justify-between border-b border-border bg-muted px-4'>
@@ -200,13 +212,25 @@ export function ChatPanel({
           )}
         </div>
         <div className='flex gap-1.5'>
-          <HintBtn level={1} disabled={noHints} onClick={() => askHint(1)}>
+          <HintBtn
+            level={1}
+            disabled={noHints || waiting}
+            onClick={() => askHint(1)}
+          >
             {t.hintVague}
           </HintBtn>
-          <HintBtn level={2} disabled={noHints} onClick={() => askHint(2)}>
+          <HintBtn
+            level={2}
+            disabled={noHints || waiting}
+            onClick={() => askHint(2)}
+          >
             {t.hintMedium}
           </HintBtn>
-          <HintBtn level={3} disabled={noHints} onClick={() => askHint(3)}>
+          <HintBtn
+            level={3}
+            disabled={noHints || waiting}
+            onClick={() => askHint(3)}
+          >
             {t.hintDirect}
           </HintBtn>
         </div>
@@ -227,7 +251,7 @@ export function ChatPanel({
           ) : (
             <button
               onClick={onSolve}
-              disabled={cantSolve}
+              disabled={cantSolve || waiting}
               title={t.solveTitle}
               className='flex w-full cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 py-3 font-mono text-[10px] text-ink transition-colors duration-200 hover:border-primary/30 hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-40 lg:py-1.5'
             >
@@ -270,16 +294,27 @@ export function ChatPanel({
           <Button
             size='icon-lg'
             onClick={sendUser}
-            disabled={!input.trim() || thinking}
+            disabled={!input.trim() || thinking || waiting}
             aria-label={t.sendLabel}
             className='shrink-0'
           >
             <Send className='size-3.5' />
           </Button>
         </div>
-        <div className='mt-2 hidden px-2 font-mono text-[10px] text-muted-foreground md:block'>
-          {t.inputHelp}
-        </div>
+        {waiting ? (
+          <div
+            className={cn(
+              'mt-2 px-2 font-mono text-[10px]',
+              sessionError ? 'text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {sessionError ? t.sessionFailed : t.sessionOpening}
+          </div>
+        ) : (
+          <div className='mt-2 hidden px-2 font-mono text-[10px] text-muted-foreground md:block'>
+            {t.inputHelp}
+          </div>
+        )}
       </div>
     </>
   )
