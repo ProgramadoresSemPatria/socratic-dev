@@ -1,4 +1,3 @@
-import type { ChallengeKind } from '@/domain/challenge-kinds'
 import { aiErrorResponse, askClaudeChecked } from '@/lib/ai/client'
 import { parseAiJson } from '@/lib/ai/parse-json'
 import { solvePasteSystem } from '@/lib/ai/prompts/solve-paste'
@@ -6,12 +5,12 @@ import {
   CAPS,
   jsonError,
   notOwner,
-  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
   tooMany,
 } from '@/lib/api/guard'
+import { sessionContext } from '@/lib/api/session-context'
 import { consumeHints } from '@/lib/api/hints-server'
 import { getLocale } from '@/lib/i18n/server'
 import { SOLVE_COST } from '@/features/hints/constants'
@@ -174,16 +173,21 @@ export async function POST(req: Request) {
     if (!(await rateLimit(`solve:${userId}`, 10, 60_000))) return tooMany()
 
     const body = await req.json()
-    const kind: ChallengeKind = body.kind === 'design' ? 'design' : 'code'
+    // Only the student's own draft comes from the client. Title, briefing,
+    // tests and kind are read from the challenge behind the session
+    // (LABS01-208 / audit 3.3) — `body.tests` reached the prompt as
+    // "TESTES OBRIGATÓRIOS", so an empty value turned a paid solve into a
+    // free, unconstrained code generator.
     const work: string = body.work ?? ''
-    const tests: string = body.tests ?? ''
     const sessionId: string | undefined = body.session_id
 
     if (work.length > CAPS.text) return tooLarge()
-    if (tests.length > CAPS.text) return tooLarge()
     if (!sessionId) return jsonError('session_id é obrigatório.', 400)
     // LABS01-201: never charge a solve against someone else's session.
-    if (!(await ownsSession(userId, sessionId))) return notOwner()
+    const ctx = await sessionContext(userId, sessionId)
+    if (!ctx) return notOwner()
+    const kind = ctx.kind
+    const tests = ctx.tests.slice(0, CAPS.text)
 
     // Consume (and record is_solve) before generating: the solution must
     // never be handed out without the penalty landing in hints_used.
@@ -192,8 +196,8 @@ export async function POST(req: Request) {
       return jsonError('Hints insuficientes para resolver.', 429)
 
     const codeParts = [
-      `Desafio: ${body.title ?? ''}`,
-      `Briefing: ${body.briefing ?? ''}`,
+      `Desafio: ${ctx.title}`,
+      `Briefing: ${ctx.briefing}`,
       `Código atual do aluno:\n${work}`,
     ]
     if (tests) {
@@ -208,8 +212,8 @@ export async function POST(req: Request) {
     const user =
       kind === 'design'
         ? [
-            `Desafio: ${body.title ?? ''}`,
-            `Briefing: ${body.briefing ?? ''}`,
+            `Desafio: ${ctx.title}`,
+            `Briefing: ${ctx.briefing}`,
             `Diagrama atual (resumo): ${work}`,
           ].join('\n')
         : codeParts.join('\n')
