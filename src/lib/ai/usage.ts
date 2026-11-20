@@ -1,4 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase/server'
+import { settle, type Reservation } from '@/lib/ai/budget'
+import { actualMicros } from '@/lib/ai/pricing'
 
 // Where the spend came from. Every paid call to Claude carries one of these so
 // the ledger can answer "which route, which user, which session".
@@ -78,19 +80,58 @@ export function usageRow(
 /**
  * Writes one row per Claude call. Never throws and never rejects: a failure to
  * record telemetry must not break an answer the student is already reading.
+ *
+ * LABS01-203: this is also where the budget reservation is reconciled, because
+ * this is the first moment the real token count exists.
  */
 export async function recordAiUsage(
   meta: UsageMeta | undefined,
   model: string,
   message: unknown,
   latencyMs: number,
+  reservation?: Reservation | null,
 ): Promise<void> {
   const row = usageRow(meta, model, message, latencyMs)
+  // No row means no usage block came back, so the real cost is unknown. The
+  // call still happened, so the pessimistic reservation stays charged — the
+  // safe direction.
   if (!row) return
   try {
     const { error } = await supabaseAdmin.from('ai_usage').insert(row)
     if (error) console.error('[recordAiUsage]', error.message)
   } catch (e) {
     console.error('[recordAiUsage]', e)
+  }
+  await settle(reservation ?? null, actualMicros(model, row))
+}
+
+/**
+ * A call the spend cap refused, recorded with zero tokens. It costs nothing,
+ * so it cannot distort any cost aggregation — and it is the only way to find
+ * out later that a cap is too tight or that someone is hammering one.
+ */
+export async function recordBlocked(
+  meta: UsageMeta | undefined,
+  model: string,
+  scope: string,
+): Promise<void> {
+  if (!meta) return
+  try {
+    const { error } = await supabaseAdmin.from('ai_usage').insert({
+      user_id: meta.userId ?? null,
+      session_id:
+        meta.sessionId && UUID.test(meta.sessionId) ? meta.sessionId : null,
+      route: meta.route,
+      mode: `blocked:${scope}`,
+      model,
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+      latency_ms: 0,
+    })
+    if (error) console.error('[recordBlocked]', error.message)
+  } catch (e) {
+    console.error('[recordBlocked]', e)
   }
 }
