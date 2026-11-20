@@ -111,7 +111,13 @@ export async function POST(req: Request) {
       task,
     ].join('\n')
 
-    const stream = askClaudeStream({
+    // LABS01-203: the spend cap is reserved inside askClaudeStream, which is
+    // after consumeHints above — so in theory a hint could be debited for an
+    // answer the cap then refuses. It cannot happen to a legitimate user: 35
+    // free hints a week is at most US$ 0.67 of AI a month, against a US$ 3
+    // monthly cap. Reaching the cap means spending on the hint-free surfaces
+    // too, deliberately.
+    const stream = await askClaudeStream({
       system,
       messages: [...history, { role: 'user', content: finalUser }],
       maxTokens: mode === 'solve' ? 2600 : 1024,
