@@ -226,7 +226,9 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
   const language: RunnerLanguage = challengeLanguage(challenge.stack)
 
   async function sendTutorMessage(text: string) {
-    if (!text.trim() || s.thinking) return
+    // LABS01-208: the tutor reads the challenge and the transcript from the
+    // session, so there is nothing to ask before it exists.
+    if (!text.trim() || s.thinking || !s.sessionId) return
     const next = [...s.messages, { role: 'user' as const, text: text.trim() }]
     s.setMessages(next)
     s.setThinking(true)
@@ -235,10 +237,9 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
         ...POST,
         body: JSON.stringify({
           mode: 'reply',
-          messages: next,
+          text: text.trim(),
           code: s.work,
-          title: challenge.title,
-          briefing: challenge.client_briefing,
+          session_id: s.sessionId,
         }),
       })
       if (!res.ok || !res.body) {
@@ -349,7 +350,7 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
   }
 
   async function askHint(level: 1 | 2 | 3) {
-    if (s.thinking) return
+    if (s.thinking || !s.sessionId) return
     s.setThinking(true)
     try {
       const res = await apiFetch('/api/tutor', {
@@ -357,10 +358,7 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
         body: JSON.stringify({
           mode: 'hint',
           hintLevel: level,
-          messages: s.messages,
           code: s.work,
-          title: challenge.title,
-          briefing: challenge.client_briefing,
           session_id: s.sessionId,
         }),
       })
@@ -388,18 +386,14 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
   }
 
   async function askSolve() {
-    if (s.thinking) return
+    if (s.thinking || !s.sessionId) return
     s.setThinking(true)
     s.spendSolve()
     try {
       const res = await apiFetch('/api/solve', {
         ...POST,
         body: JSON.stringify({
-          kind: 'code',
-          title: challenge.title,
-          briefing: challenge.client_briefing,
           work: s.work,
-          tests: challenge.tests_source,
           session_id: s.sessionId,
         }),
       })
@@ -489,13 +483,19 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
     setOutcome(solved ? 'pass' : 'fail')
     s.complete(s.elapsed, solved ? 'completed' : 'abandoned')
 
+    // LABS01-208: the rubric's briefing comes from the session now. The test
+    // results above are already on screen either way.
+    if (!s.sessionId) {
+      setReview(t.reviewFallback)
+      setReviewing(false)
+      return
+    }
+
     try {
       const res = await apiFetch('/api/review', {
         ...POST,
         body: JSON.stringify({
           code,
-          title: challenge.title,
-          briefing: challenge.client_briefing,
           tests_passed: passed,
           tests_total: total,
           session_id: s.sessionId,
@@ -712,6 +712,8 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
               buying={s.buying}
               buyError={s.buyError}
               bought={s.bought}
+              sessionReady={s.sessionReady}
+              sessionError={s.sessionError}
             />
           </LineCitationContext.Provider>
         </aside>

@@ -4,12 +4,12 @@ import {
   CAPS,
   jsonError,
   notOwner,
-  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
   tooMany,
 } from '@/lib/api/guard'
+import { sessionContext } from '@/lib/api/session-context'
 import { getLocale } from '@/lib/i18n/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
@@ -24,8 +24,6 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}))
   const code: string = body.code ?? ''
-  const title: string = body.title ?? ''
-  const briefing: string = body.briefing ?? ''
   const sessionId: string | undefined = body.session_id
   const testsPassed: number = body.tests_passed ?? 0
   const testsTotal: number = body.tests_total ?? 0
@@ -35,7 +33,13 @@ export async function POST(req: Request) {
 
   // LABS01-201: the submission lands on a public replay page, so refuse a
   // session the caller does not own before spending a single AI token.
-  if (sessionId && !(await ownsSession(userId, sessionId))) return notOwner()
+  // LABS01-208: the check used to be `sessionId && ...`, which made it
+  // optional — omitting session_id skipped it and still spent tokens. The
+  // session is also where the rubric's challenge comes from, so it is
+  // required, and `title`/`briefing` are no longer read from the body.
+  if (!sessionId) return jsonError('session_id é obrigatório.', 400)
+  const ctx = await sessionContext(userId, sessionId)
+  if (!ctx) return notOwner()
 
   const testLine =
     testsTotal > 0
@@ -43,8 +47,8 @@ export async function POST(req: Request) {
       : 'Sem testes automáticos.'
 
   const user = [
-    `Desafio: ${title}`,
-    `Briefing do cliente: ${briefing}`,
+    `Desafio: ${ctx.title}`,
+    `Briefing do cliente: ${ctx.briefing}`,
     testLine,
     '',
     'Código submetido:',
@@ -69,7 +73,7 @@ export async function POST(req: Request) {
     aiError = e
   }
 
-  if (sessionId && userId) {
+  if (userId) {
     await supabaseAdmin.from('code_submissions').insert({
       session_id: sessionId,
       user_id: userId,

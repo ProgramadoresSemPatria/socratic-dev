@@ -2,13 +2,14 @@ import { aiErrorResponse, askClaude, askClaudeVision } from '@/lib/ai/client'
 import { reviewSystem } from '@/lib/ai/prompts/review'
 import {
   CAPS,
+  jsonError,
   notOwner,
-  ownsSession,
   rateLimit,
   requireUser,
   tooLarge,
   tooMany,
 } from '@/lib/api/guard'
+import { sessionContext } from '@/lib/api/session-context'
 import { getLocale } from '@/lib/i18n/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
@@ -22,8 +23,6 @@ export async function POST(req: Request) {
   if (!(await rateLimit(`design-review:${userId}`, 20, 60_000))) return tooMany()
 
   const body = await req.json().catch(() => ({}))
-  const title: string = body.title ?? ''
-  const brief: string = body.brief ?? ''
   const summary: string = body.summary ?? ''
   const imageBase64: string | undefined = body.imageBase64
   const scene: string | undefined = body.scene
@@ -34,11 +33,18 @@ export async function POST(req: Request) {
 
   // LABS01-201: same as /api/review — the submission is what /replay/[id]
   // renders publicly.
-  if (sessionId && !(await ownsSession(userId, sessionId))) return notOwner()
+  // LABS01-208: and the same conditional-guard hole — the rubric graded
+  // against `body.title` / `body.brief`, which the student could write. This
+  // route was missing from the original Day 3 plan; the design track is the
+  // product's focus from Day 10 on, and LABS01-211's rubric needs a briefing
+  // that cannot be edited.
+  if (!sessionId) return jsonError('session_id é obrigatório.', 400)
+  const ctx = await sessionContext(userId, sessionId)
+  if (!ctx) return notOwner()
 
   const userText = [
-    `Desafio: ${title}`,
-    `Briefing do cliente: ${brief}`,
+    `Desafio: ${ctx.title}`,
+    `Briefing do cliente: ${ctx.briefing}`,
     `Resumo do diagrama: ${summary}`,
     '',
     'Revise o diagrama de arquitetura.',
@@ -73,7 +79,7 @@ export async function POST(req: Request) {
     aiError = e
   }
 
-  if (sessionId && userId) {
+  if (userId) {
     await supabaseAdmin.from('code_submissions').insert({
       session_id: sessionId,
       user_id: userId,

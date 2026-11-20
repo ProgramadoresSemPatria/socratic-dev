@@ -39,6 +39,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_budget: {
+        Row: {
+          bucket: string
+          micros: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          micros?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          bucket?: string
+          micros?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       challenges: {
         Row: {
           client_briefing: string
@@ -415,6 +436,51 @@ export type Database = {
           },
           {
             foreignKeyName: "sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tutor_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          seq: number
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          seq?: number
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          seq?: number
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutor_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tutor_messages_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

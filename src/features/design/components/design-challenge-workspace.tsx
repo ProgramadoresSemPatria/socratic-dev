@@ -194,18 +194,19 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
     return apiRef.current?.getGraph() ?? coerceGraph(s.work)
   }
 
+  // LABS01-208: the challenge (title, briefing, kind) is read from the
+  // session on the server, so the body carries only the diagram the student
+  // drew and the session it belongs to.
   function tutorBody(extra: Record<string, unknown>) {
     return JSON.stringify({
-      domain: 'design',
-      title: challenge.title,
-      briefing: challenge.client_briefing,
       code: summarizeGraph(currentGraph()),
+      session_id: s.sessionId,
       ...extra,
     })
   }
 
   async function sendUser() {
-    if (!s.input.trim() || s.thinking) return
+    if (!s.input.trim() || s.thinking || !s.sessionId) return
     const text = s.input.trim()
     const next = [...s.messages, { role: 'user' as const, text }]
     s.setMessages(next)
@@ -214,7 +215,7 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
     try {
       const res = await apiFetch('/api/tutor', {
         ...POST,
-        body: tutorBody({ mode: 'reply', messages: next }),
+        body: tutorBody({ mode: 'reply', text }),
       })
       if (!res.ok || !res.body) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
@@ -230,12 +231,12 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
   }
 
   async function askAnalysis() {
-    if (s.thinking) return
+    if (s.thinking || !s.sessionId) return
     s.setThinking(true)
     try {
       const res = await apiFetch('/api/tutor', {
         ...POST,
-        body: tutorBody({ mode: 'reply', messages: s.messages }),
+        body: tutorBody({ mode: 'reply' }),
       })
       if (!res.ok || !res.body) {
         const data = (await res.json().catch(() => ({}))) as { error?: string }
@@ -251,17 +252,12 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
   }
 
   async function askHint(level: 1 | 2 | 3) {
-    if (s.thinking) return
+    if (s.thinking || !s.sessionId) return
     s.setThinking(true)
     try {
       const res = await apiFetch('/api/tutor', {
         ...POST,
-        body: tutorBody({
-          mode: 'hint',
-          hintLevel: level,
-          messages: s.messages,
-          session_id: s.sessionId,
-        }),
+        body: tutorBody({ mode: 'hint', hintLevel: level }),
       })
       const remaining = res.headers.get('X-Hints-Remaining')
       if (remaining != null) s.syncRemaining(Number(remaining))
@@ -323,7 +319,12 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
   async function askSolve() {
     // Mid-walkthrough: don't let a re-click spend hints on a fresh solve —
     // "Continue" is how the user advances the one already in progress.
-    if (s.thinking || (solve && solve.revealed < solve.steps.length)) return
+    if (
+      s.thinking ||
+      !s.sessionId ||
+      (solve && solve.revealed < solve.steps.length)
+    )
+      return
     s.setThinking(true)
     s.spendSolve()
     s.pushMessage({ role: 'ai', text: t.solveBuilding })
@@ -331,9 +332,6 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
       const res = await apiFetch('/api/solve', {
         ...POST,
         body: JSON.stringify({
-          kind: 'design',
-          title: challenge.title,
-          briefing: challenge.client_briefing,
           work: summarizeGraph(currentGraph()),
           session_id: s.sessionId,
         }),
@@ -413,12 +411,17 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
       imageBase64 = null
     }
 
+    // LABS01-208: the rubric's briefing comes from the session now.
+    if (!s.sessionId) {
+      setReview(t.reviewFallback)
+      setReviewing(false)
+      return
+    }
+
     try {
       const res = await apiFetch('/api/design-review', {
         ...POST,
         body: JSON.stringify({
-          title: challenge.title,
-          brief: challenge.client_briefing,
           summary,
           imageBase64,
           scene: JSON.stringify(graph),
@@ -549,6 +552,8 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
                   }
                 : null
             }
+            sessionReady={s.sessionReady}
+            sessionError={s.sessionError}
           />
         </aside>
       </div>
