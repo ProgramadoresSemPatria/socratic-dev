@@ -39,6 +39,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_budget: {
+        Row: {
+          bucket: string
+          micros: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          micros?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          bucket?: string
+          micros?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       challenges: {
         Row: {
           client_briefing: string
