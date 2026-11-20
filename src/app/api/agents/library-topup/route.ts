@@ -1,6 +1,6 @@
 import { STACKS } from '@/domain/stacks'
 import { generateChallenge, type GenLevel } from '@/lib/ai/generate-challenge'
-import { jsonError } from '@/lib/api/guard'
+import { jsonError, rateLimit, tooMany } from '@/lib/api/guard'
 import type { Locale } from '@/lib/i18n'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
@@ -50,6 +50,14 @@ export async function POST(req: Request) {
   if (req.headers.get('x-agent-secret') !== secret) {
     return jsonError('Não autorizado.', 401)
   }
+
+  // LABS01-203: this was the only AI route with no rate limit at all — the
+  // secret was the whole defence. It is also the most expensive request in the
+  // product (up to 6 challenges, two AI calls each, ~US$ 0.155 measured) and
+  // it runs without a user, so no per-user cap can ever reach it: only the
+  // global bucket does. Two runs an hour is more than a library top-up cron
+  // needs, and the key is per route because there is no user to key on.
+  if (!(await rateLimit('agent:library-topup', 2, 3_600_000))) return tooMany()
 
   const body = (await req.json().catch(() => ({}))) as {
     target?: number
