@@ -481,7 +481,6 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
     setSubmitTests({ passed, total, results })
     const solved = total === 0 || passed === total
     setOutcome(solved ? 'pass' : 'fail')
-    s.complete(s.elapsed, solved ? 'completed' : 'abandoned')
 
     // LABS01-208: the rubric's briefing comes from the session now. The test
     // results above are already on screen either way.
@@ -507,6 +506,14 @@ function CodeChallengeSession({ challenge }: { challenge: Challenge }) {
       setReviewOpen(false)
       s.pushMessage({ role: 'ai', text: t.errNetwork })
     } finally {
+      // LABS01-219: completing comes AFTER the review, because the review is
+      // what records the submission the award now requires as evidence. The
+      // old order called this first, so the gate would have found nothing and
+      // refused everyone. In the `finally` so a failed AI review still
+      // completes the session — the row is written server-side before the
+      // error is returned — and a request that never arrived leaves the
+      // session open, which a resubmit resolves (the award is idempotent).
+      s.complete(s.elapsed, solved ? 'completed' : 'abandoned')
       setReviewing(false)
     }
   }
