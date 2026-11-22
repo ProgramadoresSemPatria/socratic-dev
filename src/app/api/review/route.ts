@@ -79,6 +79,12 @@ export async function POST(req: Request) {
       user_id: userId,
       code,
       review_response: review,
+      // LABS01-219: the evidence award_session_points reads. These two are
+      // client-declared — the browser runs the tests — but they are now
+      // recorded next to the code that claims to pass them, which is what
+      // makes a false claim auditable instead of invisible.
+      tests_passed: Math.max(0, Math.trunc(testsPassed)),
+      tests_total: Math.max(0, Math.trunc(testsTotal)),
     })
   }
 
