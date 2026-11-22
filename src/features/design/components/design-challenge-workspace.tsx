@@ -401,7 +401,6 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
       return
     }
     setOutcome('pass')
-    s.complete(s.elapsed, 'completed')
 
     const summary = summarizeGraph(graph)
     let imageBase64: string | null
@@ -434,6 +433,11 @@ function DesignChallengeSession({ challenge }: { challenge: Challenge }) {
       setReviewOpen(false)
       s.pushMessage({ role: 'ai', text: t.errNetwork })
     } finally {
+      // LABS01-219: after the review, which is what records the scene the
+      // award counts. Drawing one box no longer scores the challenge — the
+      // server needs a graph with at least three nodes and one edge that
+      // resolves. The real grade comes with the rubric of LABS01-211.
+      s.complete(s.elapsed, 'completed')
       setReviewing(false)
     }
   }
