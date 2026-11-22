@@ -10,6 +10,7 @@ import {
   tooMany,
 } from '@/lib/api/guard'
 import { sessionContext } from '@/lib/api/session-context'
+import { countGraph } from '@/features/design/graph/count'
 import { getLocale } from '@/lib/i18n/server'
 import { supabaseAdmin } from '@/lib/supabase/server'
 
@@ -79,11 +80,21 @@ export async function POST(req: Request) {
     aiError = e
   }
 
+  // LABS01-219: the design track had no correctness signal at all —
+  // submitDesign only refused an empty canvas, so one box scored the whole
+  // challenge. Counting the graph HERE, from the scene the server already
+  // stores, is the one piece of evidence that does not depend on the client's
+  // word. It is a floor, not a grade: the grade arrives with the rubric of
+  // LABS01-211, and the award should derive from it then.
+  const graph = countGraph(scene)
+
   if (userId) {
     await supabaseAdmin.from('code_submissions').insert({
       session_id: sessionId,
       user_id: userId,
       code: scene ?? summary,
+      node_count: graph?.nodes ?? null,
+      edge_count: graph?.edges ?? null,
       review_response: review,
     })
   }
