@@ -114,26 +114,38 @@ export type Database = {
       code_submissions: {
         Row: {
           code: string
+          edge_count: number | null
           id: string
+          node_count: number | null
           review_response: string | null
           session_id: string
           submitted_at: string
+          tests_passed: number | null
+          tests_total: number | null
           user_id: string
         }
         Insert: {
           code: string
+          edge_count?: number | null
           id?: string
+          node_count?: number | null
           review_response?: string | null
           session_id: string
           submitted_at?: string
+          tests_passed?: number | null
+          tests_total?: number | null
           user_id: string
         }
         Update: {
           code?: string
+          edge_count?: number | null
           id?: string
+          node_count?: number | null
           review_response?: string | null
           session_id?: string
           submitted_at?: string
+          tests_passed?: number | null
+          tests_total?: number | null
           user_id?: string
         }
         Relationships: [
