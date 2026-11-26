@@ -1,0 +1,94 @@
+# Supabase local stack — LABS01-204, and half of LABS01-202.
+#
+# This file did not exist, which is why the investor's audit could not verify
+# the authentication settings from the repository at all (finding 3.5: "não deu
+# para verificar pelo repositório porque não existe supabase/config.toml"). Two
+# consequences, both closed here:
+#
+#   1. there was no local Supabase, so RLS, grants and the security-definer
+#      functions could only ever be tested against production;
+#   2. the auth configuration lived exclusively in the dashboard, where a
+#      change leaves no trace and no reviewer.
+#
+# `major_version` is not a guess: the linked project reports 17.6.1.127
+# (supabase/.temp/postgres-version), so the local replay of the migrations runs
+# on the same major version as production.
+#
+# IMPORTANT: this governs the LOCAL stack. It does not reach the hosted
+# project by itself — that needs `supabase link` + `supabase config push`. The
+# values below mirror what the dashboard was set to on Day 2 (LABS01-202), so
+# they are the reviewable record of it, not its enforcement.
+
+project_id = "socratic-dev"
+
+[api]
+enabled = true
+port = 54321
+# `graphql_public` ships with the platform; nothing in the product uses it, but
+# leaving it out of the local stack would make local differ from production.
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+# Desligados porque o produto não os usa: `grep -rE "\.storage\.|\.channel\(" src`
+# não acha nada. São dois containers a menos para subir, aqui e no CI, e o
+# arquivo passa a dizer de que a aplicação realmente depende — Postgres, Auth e
+# PostgREST.
+[storage]
+enabled = false
+
+[realtime]
+enabled = false
+
+# Também desligado: não existe `supabase/functions/`. O produto roda no Worker
+# do Cloudflare, não em Edge Functions do Supabase. Ligado, ele ainda escrevia
+# um bootstrap Deno em `supabase/.temp/` que sozinho rendia 187 erros de lint.
+[edge_runtime]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+
+# LABS01-202 / finding 3.5. Credentials belong to the Borderless platform: the
+# bridge in src/features/auth/actions.ts validates them there and then creates
+# the Supabase user WITHOUT a password, handing the client a one-time
+# magic-link token. So nobody signs up through Supabase, and nothing should be
+# able to.
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+# The GitHub provider was left enabled by the hackathon login and is the other
+# half of LABS01-218: a session established through it never passes the
+# platform check. Off here, and refused at the API layer by
+# src/lib/api/auth-method.ts regardless of what the dashboard says.
+[auth.external.github]
+enabled = false
+client_id = ""
+secret = ""
+
+[analytics]
+enabled = false

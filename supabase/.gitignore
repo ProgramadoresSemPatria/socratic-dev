@@ -1,0 +1,14 @@
+# Estado local da CLI do Supabase. O `.temp/` chegou ao repositório porque
+# este arquivo não existia (junto com o config.toml, achado 3.5): são caches
+# de `supabase link` — versões dos serviços, a ref do projeto e a URL do
+# pooler — que mudam a cada comando e não descrevem nada do produto.
+#
+# Os arquivos já versionados saem do índice com:
+#   git rm -r --cached supabase/.temp
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local

@@ -1,0 +1,38 @@
+-- ─── LABS01-204 — as default privileges sob as quais este schema foi criado ──
+-- Precisa rodar ANTES da 001, e o nome do arquivo é o que garante isso (a CLI
+-- aplica em ordem alfabética).
+--
+-- POR QUE EXISTE. Em maio de 2026, quando a 001 foi aplicada, a plataforma
+-- concedia todo o DML a `anon`, `authenticated` e `service_role` em cada
+-- tabela nova do schema `public`. É esse o mundo que as migrations seguintes
+-- assumem: a `027` *revoga* insert/update/delete de `sessions` porque o
+-- privilégio estava lá, e a `028` *concede* select em `tutor_messages` porque
+-- a tabela nasceu num momento em que o padrão já não concedia.
+--
+-- As imagens atuais do Supabase local dão apenas `Dxtm` (TRUNCATE,
+-- REFERENCES, TRIGGER, MAINTAIN) às tabelas criadas pelo papel `postgres`.
+-- Sem esta migration o replay local produz um banco que NÃO é o de produção:
+--
+--   1. nenhum select funciona para o cliente — a 031 resolve essa metade;
+--   2. e, pior para o propósito do dia, os `revoke` da 027 e da 028 ficam
+--      sem efeito observável. Medido em 25/11: comentei o
+--      `revoke insert, update, delete on public.sessions` da 027 e as
+--      asserções de supabase/tests/rls.sql **continuaram passando**, porque o
+--      insert era negado por nunca ter sido concedido. Um teste que passa com
+--      a proteção removida não é um teste: a produção podia ficar aberta com
+--      o CI verde.
+--
+-- Com esta migration no lugar, o estado inicial local é o de produção, os
+-- revokes voltam a ser a única coisa que separa o cliente da escrita, e o
+-- teste de mutação passa a falhar como deve.
+--
+-- Na produção é inócua: define explicitamente o padrão que já vigorava quando
+-- as tabelas foram criadas, e default privileges só afetam objetos FUTUROS —
+-- nenhuma tabela existente muda.
+--
+-- Escopo: só TABLES. O produto não tem sequence que o cliente toque (a única
+-- é a identity de `tutor_messages.seq`, e o cliente não escreve lá), e as
+-- permissões de função são tratadas uma a uma nas migrations 027, 029 e 030.
+
+alter default privileges for role postgres in schema public
+  grant all on tables to anon, authenticated, service_role;
