@@ -6,6 +6,7 @@ on:
     branches: [main]
 
 jobs:
+  # ─── o que roda sem banco: tipos, lint, testes e o build de produção ───────
   build:
     runs-on: ubuntu-latest
     env:
@@ -23,4 +24,40 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run lint
       - run: npm test
-      - run: npx next build
+      # LABS01-204 / achado 3.6: a produção NÃO roda `next build`. O
+      # `opennextjs-cloudflare build` é uma segunda compilação — reescreve o
+      # middleware, resolve os builtins `node:`, monta `.open-next/worker.js` —
+      # e é ela que quebrou em julho (PRs #2 a #4) e em agosto (bun.lock), nas
+      # duas vezes com o CI verde.
+      #
+      # Ele executa `npm run build` (o `next build`) por dentro, então este
+      # passo substitui o anterior em vez de somar a ele: compilar duas vezes
+      # dobraria o tempo do CI sem testar nada a mais.
+      - run: npm run build:cloudflare
+
+  # ─── o que precisa de um Postgres de verdade: RLS, grants e o portão ───────
+  # Job separado de propósito: sobe containers (1 a 2 minutos), e o retorno
+  # rápido do job acima tem de continuar rápido.
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          # Fixo na versão que o projeto já usou (supabase/.temp/cli-latest).
+          # `latest` transformaria uma mudança de formato do config.toml em um
+          # CI vermelho sem nenhum commit nosso.
+          version: 2.114.0
+
+      # Aplica as 30 migrations numa base vazia. É a PRIMEIRA vez que isso
+      # acontece no projeto: elas vêm sendo aplicadas à mão no SQL editor, uma
+      # a uma, desde maio, então até aqui ninguém sabia se o repositório
+      # descreve a produção. Se este passo falhar, é isso que descobrimos.
+      - run: supabase start
+      - run: supabase db reset
+
+      # As asserções de RLS, grants e do portão de evidência (027 a 030).
+      - name: RLS, grants e award_session_points
+        run: |
+          psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+            -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql
