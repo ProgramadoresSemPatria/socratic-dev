@@ -10,6 +10,16 @@ export default defineConfig([
   {
     ignores: [
       '.next/**',
+      // Output of `npm run build:cloudflare` (opennextjs-cloudflare). It is
+      // gitignored, but the CI now runs that build, and linting a bundler's
+      // output is meaningless: the 11 errors it reports are all generated
+      // code. Without this line, running `npm run lint` after a Cloudflare
+      // build fails on files nobody wrote.
+      '.open-next/**',
+      // Estado que o `supabase start` escreve, incluindo um bootstrap Deno do
+      // edge runtime (`start-secrets/.../main/index.ts`) com 187 erros de lint.
+      // O .gitignore não basta: a config flat do ESLint não o lê.
+      'supabase/.temp/**',
       'node_modules/**',
       'next-env.d.ts',
       'public/**',
